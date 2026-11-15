@@ -28,13 +28,25 @@ export async function onRequestPost({ request, env }) {
     ["Service", clean(input.service, 80)], ["Message", message]
   ];
   const text = fields.map(([label, value]) => label + ": " + (value || "Not provided")).join("\n");
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { "Authorization": "Bearer " + env.RESEND_API_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: env.FROM_EMAIL, to: [env.LEADS_TO_EMAIL], reply_to: email, subject: "ByeByeDoody website: " + (formType || "New inquiry"), text })
-  });
+
+  let response;
+  try {
+    response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + env.RESEND_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: env.FROM_EMAIL, to: [env.LEADS_TO_EMAIL], reply_to: email, subject: "ByeByeDoody website: " + (formType || "New inquiry"), text })
+    });
+  } catch (error) {
+    console.error("ByeByeDoody email delivery network error:", error?.name || "unknown");
+    return json({ error: "The email service could not be reached. Please try again later.", deliveryCode: "network_error" }, 502);
+  }
+
   if (!response.ok) {
-    return json({ error: "We couldn't deliver your request right now. Please try again later." }, 502);
+    let providerError = {};
+    try { providerError = await response.json(); } catch {}
+    const deliveryCode = clean(providerError.name || providerError.code || ("http_" + response.status), 80);
+    console.error("ByeByeDoody email delivery rejected:", response.status, deliveryCode);
+    return json({ error: "The email service rejected the request. Please check the email delivery settings.", deliveryCode }, 502);
   }
   return json({ ok: true });
 }
