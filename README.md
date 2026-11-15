@@ -20,7 +20,7 @@ Create a **new, separate** Cloudflare Pages project connected to this repository
 - Framework preset: **None**
 - Build command: `exit 0` (no framework build is needed; this also supports the Pages Function)
 - Build output directory: `.`
-- Root directory: `/` (repository root)
+- Root directory (advanced): leave blank (use repository root)
 - Suggested Pages project name: `byebyedoody-pages` (keeps it separate from the existing Worker named `byebyedoody-site`)
 
 No existing Cloudflare project or DNS record needs to be changed to deploy this site separately.
