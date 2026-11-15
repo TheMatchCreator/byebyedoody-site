@@ -1,45 +1,49 @@
 # ByeByeDoody
 
-A simple, mobile-friendly website for ByeByeDoody, a dog waste removal service serving residential customers in the Sacramento, California area.
+A responsive website for a Sacramento-area dog waste cleanup service.
 
 ## Website pages
 
 - `index.html` — Home
-- `services.html` — Services
-- `quote.html` — Request a quote
-- `partners.html` — Business and property partnerships
-- `work-with-us.html` — Work opportunities
-- `contact.html` — Contact
+- `services.html` — Service overview
+- `quote.html` — Residential quote request
+- `partners.html` — Property and business inquiries
+- `work-with-us.html` — Future work-interest form
+- `contact.html` — General contact form
 - `privacy.html` — Draft privacy notice
+- `404.html` — Custom not-found page
 
-## Hosting
+## Cloudflare Pages deployment
 
-This repository is intended for a separate Cloudflare Pages project. Keep it separate from all existing websites and projects.
+Create a **new, separate** Cloudflare Pages project connected to this repository's `main` branch.
 
-Planned Pages settings:
-- Framework preset: None
+- Framework preset: **None**
 - Build command: leave blank
-- Build output directory: `/` (or `.`, depending on the Cloudflare Pages form)
+- Build output directory: `/` or `.` as accepted by the dashboard
+- Root directory: repository root
 
-## Lead forms
+No existing Cloudflare project or DNS record needs to be changed to deploy this site separately.
 
-The website's lead forms submit to `/api/lead`. Email delivery requires a configured Resend account and these Cloudflare Pages environment variables:
+## Inquiry form email delivery
+
+The forms post to the Cloudflare Pages Function at `/api/lead`. To enable email delivery, configure these environment variables in the new Pages project:
 
 - `RESEND_API_KEY`
 - `LEADS_TO_EMAIL`
 - `FROM_EMAIL`
 
-The sender domain must be verified with Resend. Until configured and tested, do not assume form submissions are being delivered.
+The sender domain must be verified with Resend. Until the variables are configured and a live test is successful, form delivery is **not active**. The forms should not be advertised as working until then.
 
 ## Before public launch
 
-- Confirm the business phone number and business email to publish.
-- Confirm applicable local requirements and an approved destination for collected pet waste before offering hauling/disposal.
-- Review the privacy notice and all website copy.
-- Configure and test lead-form email delivery.
-- Review the site on desktop and mobile.
-- Connect only this repository to a new Cloudflare Pages project; do not modify existing projects or DNS records without approval.
+- Add and verify the business phone number and business email.
+- Confirm local requirements and an approved disposal destination for collected pet waste before offering hauling/disposal.
+- Review the privacy notice and contact practices.
+- Configure and test form email delivery.
+- Confirm service area, availability, and any advertised prices.
+- Review insurance and any worker arrangements before accepting work or hiring.
+- Connect only this repository to a new Cloudflare Pages project. Do not modify existing projects or DNS records without approval.
 
-## Status
+## Current status
 
-Initial repository setup. Website files and deployment configuration are to be added.
+Website source is in GitHub. Cloudflare Pages deployment and domain connection are pending account authorization and the owner's final approval.
