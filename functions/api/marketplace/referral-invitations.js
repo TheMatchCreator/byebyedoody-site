@@ -1,3 +1,4 @@
+import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { requireUser } from "../../_shared/marketplace-auth.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -40,6 +41,8 @@ export async function onRequest({ request, env }) {
   }
 
   if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
+  const limited = await enforceRateLimit(env, user.id, "referral_invitation_write", 12, 3600);
+  if (limited) return limited;
   let input;
   try { input = await request.json(); } catch { return json({ error: "Submit a valid referral action." }, 400); }
   const action = input.action;
