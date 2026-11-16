@@ -65,15 +65,19 @@ export async function onRequest({ request, env }) {
     ).bind(requestId, user.id).first();
     if (existing) return json({ error: "You already have an active quote for this request." }, 409);
     const id = crypto.randomUUID();
-    await env.DB.prepare(
-      "INSERT INTO provider_quotes (id, request_id, provider_id, provider_service_rate_cents, currency, terms_summary, status) VALUES (?, ?, ?, ?, 'usd', ?, 'offered')"
-    ).bind(id, requestId, user.id, rate, terms).run();
-    await env.DB.prepare(
-      "UPDATE service_requests SET status = 'quoted' WHERE id = ? AND status IN ('submitted','open_for_referral','quoted')"
-    ).bind(requestId).run();
-    await env.DB.prepare(
-      "INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'provider_quote_submitted', 'provider_quote', ?)"
-    ).bind(crypto.randomUUID(), user.id, id).run();
+    // Keep quote creation, request-state update, and audit record atomic.
+    // The unique partial index in migration 0002 remains the concurrency guard.
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO provider_quotes (id, request_id, provider_id, provider_service_rate_cents, currency, terms_summary, status) VALUES (?, ?, ?, ?, 'usd', ?, 'offered')"
+      ).bind(id, requestId, user.id, rate, terms),
+      env.DB.prepare(
+        "UPDATE service_requests SET status = 'quoted' WHERE id = ? AND status IN ('submitted','open_for_referral','quoted')"
+      ).bind(requestId),
+      env.DB.prepare(
+        "INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'provider_quote_submitted', 'provider_quote', ?)"
+      ).bind(crypto.randomUUID(), user.id, id)
+    ]);
     return json({ ok: true, quote: { id, requestId, providerRateCents: rate, currency: "usd", terms, status: "offered" }, message: "Your independently set quote has been sent for customer review. No booking or payment has been created." }, 201);
   } catch (error) {
     console.error("Provider quote submission failed:", error?.message || "database_error");
