@@ -34,5 +34,5 @@ jobs:
           grep -q 'readyForAuthenticatedTraffic: false' functions/api/marketplace/status.js
           grep -q 'marketplacePayments: false' functions/api/marketplace/status.js
           grep -q 'api_rate_limits' migrations/0006_api_rate_limits.sql
-          grep -q 'matching_consent_at' migrations/0003_referral_invitations.sql
+          grep -q 'matching_consent_at' migrations/0003_matching_consent.sql
           grep -q 'customer_fee_acknowledged_at' migrations/0001_marketplace_foundation.sql
