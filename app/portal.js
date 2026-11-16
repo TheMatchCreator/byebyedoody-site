@@ -80,6 +80,7 @@
         <div class="portal-grid">
           <article class="portal-panel"><h2>Privacy request</h2><p>Submit an access, correction, deletion or location-revocation request. Identity checks and lawful retention requirements may apply.</p><form data-form="privacy"><label>Request type<select name="requestType" required><option value="access">Access my information</option><option value="correction">Correct my information</option><option value="deletion">Delete my information</option><option value="location_revocation">Revoke location consent</option></select></label><button class="button button-dark">Submit privacy request</button></form><button class="button button-outline-dark" type="button" data-action="load-privacy">View my privacy requests</button><div data-privacy class="portal-results"></div></article>
           <article class="portal-panel"><h2>Report a service issue</h2><p>Available to customers and providers connected to a referral.</p><form data-form="issue"><label>Referral ID<input name="referralId" required maxlength="80"></label><label>Issue type<select name="issueType"><option value="service_quality">Service quality</option><option value="property_access">Property access</option><option value="animal_safety">Animal safety</option><option value="payment">Payment</option><option value="late_or_missed">Late or missed service</option><option value="other">Other</option></select></label><label>Details<textarea name="description" required minlength="10" maxlength="2000"></textarea></label><button class="button button-dark">Submit issue</button></form></article>
+          <article class="portal-panel portal-wide"><h2>Draft terms and acknowledgements</h2><p>Read the role-specific draft terms. These are not final contracts and acknowledgement records receipt only.</p><button type="button" class="button button-outline-dark" data-action="load-agreements">Load my draft terms</button><div data-agreements class="portal-results"></div></article>
         </div>`,
       admin: () => `
         <div class="portal-grid">
@@ -118,7 +119,7 @@
   }
   async function runAction(action, button) {
     const panel = button.closest(".portal-panel");
-    const target = panel?.querySelector("[data-results],[data-invitations],[data-areas],[data-availability],[data-privacy],[data-providers],[data-matches]");
+    const target = panel?.querySelector("[data-results],[data-invitations],[data-areas],[data-availability],[data-privacy],[data-providers],[data-matches],[data-agreements]");
     if (target) target.textContent = "Loading…";
     const renderRows = (rows, fields) => rows.length ? rows.map((row) => "<div class='portal-result-row'>"+fields.map(([key,label])=>"<span><b>"+escapeHtml(label)+":</b> "+escapeHtml(row[key] ?? "—")+"</span>").join("")+(action==="load-requests" && state.role==="provider" ? "<button type='button' data-quote-request='"+escapeHtml(row.id)+"'>Prepare quote</button>" : "")+"</div>").join("") : "<p>No records found.</p>";
     try {
@@ -132,6 +133,12 @@
       if (action === "load-areas") { data=await api("/api/marketplace/service-areas"); html=renderRows(data.serviceAreas||[],[["zip_code","ZIP"],["active","Active"]]); }
       if (action === "load-availability") { data=await api("/api/marketplace/availability"); html=renderRows(data.availability||[],[["starts_at","Starts"],["ends_at","Ends"],["status","Status"]]); }
       if (action === "load-privacy") { data=await api("/api/marketplace/privacy-requests"); html=renderRows(data.privacyRequests||[],[["request_type","Type"],["status","Status"],["received_at","Received"]]); }
+      if (action === "load-agreements") {
+        data=await api("/api/marketplace/agreements");
+        const draft=data.draft;
+        const accepted=(data.acknowledgements||[]).some((item)=>item.agreement_key===draft?.key && item.agreement_version===draft?.version);
+        html=draft ? "<h3>"+escapeHtml(draft.title)+"</h3><p><b>"+escapeHtml(draft.notice)+"</b></p><ul>"+draft.points.map((point)=>"<li>"+escapeHtml(point)+"</li>").join("")+"</ul><p>Version: "+escapeHtml(draft.version)+"</p>"+(accepted?"<p>Receipt acknowledgement already recorded for this draft version.</p>":"<form data-draft-ack><label><input type='checkbox' name='acknowledged' required> I confirm I have read this draft and acknowledge receipt only. I understand this is not a contract or authorization to perform work.</label><button class='button button-dark'>Acknowledge receipt</button></form>") : "<p>No draft terms are available for this role.</p>";
+      }
       if (action === "admin-overview") { data=await api("/api/marketplace/admin-overview"); html=["requests","providers","quotes","serviceIssues","privacyRequests"].map((key)=>"<h3>"+escapeHtml(key)+"</h3>"+renderRows(data[key]||[],[["status","Status"],["count","Count"]])).join(""); }
       if (action === "admin-providers") { data=await api("/api/marketplace/admin-providers"); html=(data.providers||[]).map((p)=>"<div class='portal-result-row'><b>"+escapeHtml(p.independent_business_name)+"</b><span>Status: "+escapeHtml(p.onboarding_status)+"</span><span>Provider ID: "+escapeHtml(p.user_id)+"</span><div class='portal-actions'><button type='button' data-review='approve' data-id='"+escapeHtml(p.user_id)+"'>Approve</button><button type='button' data-review='reject' data-id='"+escapeHtml(p.user_id)+"'>Reject</button><button type='button' data-review='request_changes' data-id='"+escapeHtml(p.user_id)+"'>Request changes</button></div></div>").join("")||"<p>No applications.</p>"; }
       if (action === "admin-matches") { data=await api("/api/marketplace/admin-matches"); html=(data.matches||[]).map((m)=>"<div class='portal-result-row'><b>Request "+escapeHtml(m.request.id)+" · ZIP "+escapeHtml(m.request.zip)+"</b>"+renderRows(m.candidates,[["businessName","Provider"],["nextAvailableStart","Available from"]])+"</div>").join("")||"<p>No suggestions.</p>"; }
@@ -141,6 +148,7 @@
         const field=root.querySelector('input[name="requestId"]');
         if(field) field.value=control.dataset.quoteRequest;
       }));
+      target?.querySelectorAll("[data-draft-ack]").forEach((form)=>form.addEventListener("submit",async(event)=>{event.preventDefault();try{await api("/api/marketplace/agreements",{method:"POST",body:JSON.stringify({agreementKey:data.draft.key,version:data.draft.version,acknowledged:form.elements.acknowledged.checked})});notice("Receipt acknowledgement recorded. This is not contractual acceptance.");await runAction("load-agreements",button);}catch(error){notice(error.message,true);}}));
       panel?.querySelectorAll("[data-select-quote]").forEach((control)=>control.addEventListener("click",async()=>{try{const result=await api("/api/marketplace/referral-invitations",{method:"POST",body:JSON.stringify({action:"select_quote",quoteId:control.dataset.selectQuote})});notice(result.message);await runAction("load-invitations",button);}catch(error){notice(error.message,true);}}));
       panel?.querySelectorAll("[data-invitation-action]").forEach((control)=>control.addEventListener("click",async()=>{try{const result=await api("/api/marketplace/referral-invitations",{method:"POST",body:JSON.stringify({action:control.dataset.invitationAction,invitationId:control.dataset.id})});notice(result.message);await runAction("load-invitations",button);}catch(error){notice(error.message,true);}}));
       panel?.querySelectorAll("[data-quote-action]").forEach((control)=>control.addEventListener("click",async()=>{
