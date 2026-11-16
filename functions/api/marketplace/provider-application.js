@@ -54,7 +54,10 @@ export async function onRequest({ request, env }) {
       ...zipCodes.map((zip) => env.DB.prepare("INSERT INTO provider_service_areas (id, provider_id, zip_code, active) VALUES (?, ?, ?, 1)")
         .bind(crypto.randomUUID(), user.id, zip)),
       env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'provider_application_submitted', 'provider_profile', ?)")
-        .bind(crypto.randomUUID(), user.id, user.id)
+        .bind(crypto.randomUUID(), user.id, user.id),
+      env.DB.prepare(`INSERT INTO notification_events (id, user_id, channel, template_key, delivery_status)
+        SELECT lower(hex(randomblob(16))), id, 'in_app', 'admin_new_provider_application', 'queued'
+        FROM app_users WHERE role = 'admin' AND account_status = 'active'`)
     ];
     await env.DB.batch(statements);
     return json({ ok: true, status: "submitted", message: "Your application has been submitted for review. It does not authorize you to accept referrals yet." }, 201);
