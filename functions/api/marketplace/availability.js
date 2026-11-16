@@ -41,6 +41,19 @@ export async function onRequest({ request, env }) {
     }
   }
 
+  if (request.method === "DELETE") {
+    let input;
+    try { input = await request.json(); } catch { return json({ error: "Provide the availability window to withdraw." }, 400); }
+    const id = typeof input.id === "string" ? input.id.slice(0, 80) : "";
+    if (!id) return json({ error: "A valid availability ID is required." }, 400);
+    const result = await env.DB.prepare("UPDATE provider_availability SET status = 'withdrawn' WHERE id = ? AND provider_id = ? AND status IN ('available','unavailable')")
+      .bind(id, user.id).run();
+    if (!result.meta?.changes) return json({ error: "Availability window not found or already withdrawn." }, 404);
+    await env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'provider_availability_withdrawn', 'provider_availability', ?)")
+      .bind(crypto.randomUUID(), user.id, id).run();
+    return json({ ok: true, id, status: "withdrawn" });
+  }
+
   if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
   const length = Number(request.headers.get("Content-Length") || 0);
   if (length > 3000) return json({ error: "The request is too large." }, 413);
@@ -56,6 +69,9 @@ export async function onRequest({ request, env }) {
   if (start < now - 60000 || end <= start || end - start > 24 * 60 * 60 * 1000 || start > now + 90 * 24 * 60 * 60 * 1000) {
     return json({ error: "Choose a future availability window no longer than 24 hours and within the next 90 days." }, 400);
   }
+  const overlap = await env.DB.prepare("SELECT id FROM provider_availability WHERE provider_id = ? AND status IN ('available','unavailable') AND starts_at < ? AND ends_at > ? LIMIT 1")
+    .bind(user.id, new Date(end).toISOString(), new Date(start).toISOString()).first();
+  if (overlap) return json({ error: "This window overlaps another availability window. Withdraw or adjust the existing window first." }, 409);
   const id = crypto.randomUUID();
   try {
     await env.DB.prepare(
