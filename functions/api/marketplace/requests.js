@@ -36,6 +36,15 @@ export async function onRequest({ request, env }) {
   const auth = await requireUser(request, env, ["customer", "admin"]);
   if (auth.response) return auth.response;
   const user = auth.user;
+  try {
+    const account = await env.DB.prepare("SELECT role, account_status FROM app_users WHERE id = ?").bind(user.id).first();
+    if (!account || account.account_status !== "active" || account.role !== user.role) {
+      return json({ error: "This account is not active for marketplace access." }, 403);
+    }
+  } catch (error) {
+    console.error("Marketplace account check failed:", error?.message || "database_error");
+    return json({ error: "Account access could not be checked." }, 503);
+  }
 
   if (request.method === "GET") {
     try {
