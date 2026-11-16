@@ -58,16 +58,29 @@ export async function onRequest({ request, env }) {
         .bind(quoteId, user.id).first();
       if (!quote) return json({ error: "An available quote on one of your requests was not found." }, 404);
       const invitationId = crypto.randomUUID();
-      await env.DB.batch([
+      const writes = await env.DB.batch([
         env.DB.prepare(`INSERT INTO referral_invitations
           (id, request_id, quote_id, customer_id, provider_id, status)
-          VALUES (?, ?, ?, ?, ?, 'awaiting_provider')`)
-          .bind(invitationId, quote.request_id, quote.id, user.id, quote.provider_id),
-        env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'customer_selected_quote', 'referral_invitation', ?)")
+          SELECT ?, q.request_id, q.id, ?, q.provider_id, 'awaiting_provider'
+          FROM provider_quotes q
+          JOIN service_requests r ON r.id = q.request_id
+          JOIN provider_profiles p ON p.user_id = q.provider_id
+          JOIN app_users pu ON pu.id = p.user_id
+          WHERE q.id = ? AND q.status = 'offered' AND r.customer_id = ?
+            AND r.matching_consent_at IS NOT NULL
+            AND p.onboarding_status = 'approved' AND pu.account_status = 'active'`)
+          .bind(invitationId, user.id, quote.id, user.id),
+        env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) SELECT ?, ?, 'customer_selected_quote', 'referral_invitation', ? WHERE changes() = 1")
           .bind(crypto.randomUUID(), user.id, invitationId),
-        env.DB.prepare("INSERT INTO notification_events (id, user_id, channel, template_key, delivery_status) VALUES (?, ?, 'in_app', 'provider_referral_invitation', 'queued')")
-          .bind(crypto.randomUUID(), quote.provider_id)
+        env.DB.prepare(`INSERT INTO notification_events (id, user_id, channel, template_key, delivery_status)
+          SELECT ?, provider_id, 'in_app', 'provider_referral_invitation', 'queued'
+          FROM provider_quotes WHERE id = ? AND changes() > 0
+            AND EXISTS (SELECT 1 FROM referral_invitations WHERE id = ? AND status = 'awaiting_provider')`)
+          .bind(crypto.randomUUID(), quote.provider_id, invitationId)
       ]);
+      if (!writes[0]?.meta?.changes) {
+        return json({ error: "The quote or request changed before the invitation could be created." }, 409);
+      }
       return json({ ok: true, invitationId, status: "awaiting_provider",
         message: "The provider has been invited to respond. This is not a booking, work assignment, or payment." }, 201);
     }
