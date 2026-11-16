@@ -93,3 +93,8 @@ The marketplace is not yet a live booking or dispatch system.
 - AI may help process customer-submitted requests and suggest matches. It must not scrape private individuals, infer dog ownership, send unsolicited outreach, or make consequential provider/legal decisions automatically.
 - Providers must opt in to availability and may freely accept or reject referrals under the selected referral-agency design.
 - Location collection must be purpose-limited, consent-based, and off by default outside an active job.
+
+
+## Automated checks
+
+GitHub Actions workflow `.github/workflows/marketplace-static-checks.yml` runs JavaScript syntax checks and verifies the staged-payment/matching-consent safety gates on pushes and pull requests.
