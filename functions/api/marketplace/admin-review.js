@@ -30,22 +30,24 @@ export async function onRequest({ request, env }) {
       if (!["verifying", "in_progress", "completed", "denied"].includes(status)) return json({ error: "Invalid privacy request status." }, 400);
       const row = await env.DB.prepare("SELECT id FROM privacy_requests WHERE id = ?").bind(id).first();
       if (!row) return json({ error: "Privacy request not found." }, 404);
-      await env.DB.batch([
+      const writes = await env.DB.batch([
         env.DB.prepare("UPDATE privacy_requests SET status = ?, completed_at = CASE WHEN ? IN ('completed','denied') THEN CURRENT_TIMESTAMP ELSE NULL END, resolution_note = ? WHERE id = ?")
           .bind(status, status, note || null, id),
-        env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, ?, 'privacy_request', ?)")
+        env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) SELECT ?, ?, ?, 'privacy_request', ? WHERE changes() = 1")
           .bind(crypto.randomUUID(), auth.user.id, "privacy_request_" + status, id)
       ]);
+      if (!writes[0]?.meta?.changes) return json({ error: "The privacy request changed or was removed. Refresh and try again." }, 409);
     } else {
       if (!["under_review", "resolved", "closed"].includes(status)) return json({ error: "Invalid service issue status." }, 400);
       const row = await env.DB.prepare("SELECT id FROM service_issues WHERE id = ?").bind(id).first();
       if (!row) return json({ error: "Service issue not found." }, 404);
-      await env.DB.batch([
+      const writes = await env.DB.batch([
         env.DB.prepare("UPDATE service_issues SET status = ?, resolution_summary = ?, resolved_by = CASE WHEN ? IN ('resolved','closed') THEN ? ELSE NULL END, resolved_at = CASE WHEN ? IN ('resolved','closed') THEN CURRENT_TIMESTAMP ELSE NULL END WHERE id = ?")
           .bind(status, note || null, status, auth.user.id, status, id),
-        env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, ?, 'service_issue', ?)")
+        env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) SELECT ?, ?, ?, 'service_issue', ? WHERE changes() = 1")
           .bind(crypto.randomUUID(), auth.user.id, "service_issue_" + status, id)
       ]);
+      if (!writes[0]?.meta?.changes) return json({ error: "The service issue changed or was removed. Refresh and try again." }, 409);
     }
     return json({ ok: true, kind, id, status });
   } catch (error) {
