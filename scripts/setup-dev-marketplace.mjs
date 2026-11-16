@@ -52,7 +52,7 @@ if (!accountId) {
   console.log(`This key can reach ${accounts.length} Cloudflare account(s).`);
   for (const a of accounts) {
     let names = [];
-    try { names = (await cf(`/accounts/${a.id}/pages/projects?per_page=50`)).map((p) => p.name); }
+    try { names = (await cf(`/accounts/${a.id}/pages/projects`)).map((p) => p.name); }
     catch (e) { console.log(`- account "${a.name}": could not list Pages projects (${e.message.replace(/^.*failed: /, "")})`); continue; }
     console.log(`- account "${a.name}": Pages projects: ${names.join(", ") || "(none)"}`);
     if (names.includes(PROJECT)) { accountId = a.id; break; }
