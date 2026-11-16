@@ -56,9 +56,11 @@ export async function onRequest({ request, env }) {
     const accountStatus = decision === "approve" ? "active" : decision === "suspend" ? "suspended" : "pending";
     const writes = await env.DB.batch([
       env.DB.prepare(`UPDATE provider_profiles SET onboarding_status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP
-        WHERE user_id = ? AND onboarding_status IN ('submitted','under_review','rejected','incomplete')
+        WHERE user_id = ?
+          AND ((? = 'suspend' AND onboarding_status IN ('approved','submitted','under_review'))
+            OR (? != 'suspend' AND onboarding_status IN ('submitted','under_review','rejected','incomplete')))
           AND EXISTS (SELECT 1 FROM app_users WHERE id = ? AND role = 'provider' AND account_status NOT IN ('suspended','closed'))`)
-        .bind(nextStatus, adminId, providerId, providerId),
+        .bind(nextStatus, adminId, providerId, decision, decision, providerId),
       env.DB.prepare("UPDATE app_users SET account_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND changes() = 1")
         .bind(accountStatus, providerId),
       env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) SELECT ?, ?, ?, 'provider_profile', ? WHERE changes() = 1")
