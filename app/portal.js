@@ -166,7 +166,7 @@
   }
   async function runAction(action, button) {
     const panel = button.closest(".portal-panel");
-    const target = panel?.querySelector("[data-results],[data-invitations],[data-areas],[data-availability],[data-privacy],[data-providers],[data-matches],[data-agreements],[data-notifications],[data-admin-referrals]");
+    const target = panel?.querySelector("[data-results],[data-invitations],[data-areas],[data-availability],[data-privacy],[data-providers],[data-matches],[data-agreements],[data-notifications],[data-admin-referrals],[data-admin-audit]");
     if (target) target.textContent = "Loading…";
     const renderRows = (rows, fields) => rows.length ? rows.map((row) => "<div class='portal-result-row'>"+fields.map(([key,label])=>"<span><b>"+escapeHtml(label)+":</b> "+escapeHtml(row[key] ?? "—")+"</span>").join("")+(action==="load-requests" && state.role==="provider" ? "<button type='button' data-quote-request='"+escapeHtml(row.id)+"'>Prepare quote</button>" : action==="load-requests" && state.role==="customer" && ["submitted","quoted","open_for_referral"].includes(row.status) ? "<button type='button' data-cancel-request='"+escapeHtml(row.id)+"'>Cancel request</button>" : "")+"</div>").join("") : "<p>No records found.</p>";
     try {
