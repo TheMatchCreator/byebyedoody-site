@@ -69,7 +69,7 @@ export async function onRequest({ request, env }) {
       "INSERT INTO provider_quotes (id, request_id, provider_id, provider_service_rate_cents, currency, terms_summary, status) VALUES (?, ?, ?, ?, 'usd', ?, 'offered')"
     ).bind(id, requestId, user.id, rate, terms).run();
     await env.DB.prepare(
-      "UPDATE service_requests SET status = 'quoted' WHERE id = ? AND status IN ('submitted','open_for_referral')"
+      "UPDATE service_requests SET status = 'quoted' WHERE id = ? AND status IN ('submitted','open_for_referral','quoted')"
     ).bind(requestId).run();
     await env.DB.prepare(
       "INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'provider_quote_submitted', 'provider_quote', ?)"
