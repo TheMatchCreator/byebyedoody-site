@@ -56,9 +56,12 @@ export async function onRequest({ request, env }) {
     }
   }
 
-  await env.DB.prepare("UPDATE provider_service_areas SET active = 0 WHERE provider_id = ? AND zip_code = ?")
-    .bind(user.id, zip).run();
-  await env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'provider_service_area_removed', 'provider_service_area', ?)")
-    .bind(crypto.randomUUID(), user.id, zip).run();
+  const results = await env.DB.batch([
+    env.DB.prepare("UPDATE provider_service_areas SET active = 0 WHERE provider_id = ? AND zip_code = ? AND active = 1")
+      .bind(user.id, zip),
+    env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) SELECT ?, ?, 'provider_service_area_removed', 'provider_service_area', ? WHERE changes() = 1")
+      .bind(crypto.randomUUID(), user.id, zip)
+  ]);
+  if (!results[0]?.meta?.changes) return json({ error: "That ZIP code is not active in your service area." }, 404);
   return json({ ok: true, zip, active: false });
 }
