@@ -105,7 +105,10 @@
     if (!target) return;
     const labels = {
       databaseBinding: "Cloudflare D1 database",
+      coreMarketplaceSchema: "Marketplace database tables",
       rateLimitStorage: "Marketplace abuse protection",
+      notificationSchema: "In-app notification tables",
+      auditSchema: "Audit history tables",
       authenticationProvider: "Managed sign-in provider",
       privateDataEncryption: "Private request encryption",
       privateDocumentStorage: "Private document storage",
