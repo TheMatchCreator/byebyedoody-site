@@ -12,7 +12,10 @@ import { execFileSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 
-const TOKEN = process.env.CLOUDFLARE_API_TOKEN;
+const RAW_TOKEN = String(process.env.CLOUDFLARE_API_TOKEN || "");
+// Tolerate a pasted line break, spaces, quotes or a whole "Bearer ..." line around the key.
+const TOKEN = (RAW_TOKEN.match(/[A-Za-z0-9_-]{30,}/g) || []).sort((a, b) => b.length - a.length)[0] || "";
+console.log(`Key check: ${RAW_TOKEN.length} characters saved, ${TOKEN.length}-character key found` + (RAW_TOKEN.trim() !== TOKEN ? " (extra text around it was ignored)" : "") + ".");
 const PROJECT = "byebyedoody-site";
 const DB_NAME = "byebyedoody-marketplace-dev";
 const AUTH0_DOMAIN = "dev-67fy3ittqngxqy5v.us.auth0.com";
@@ -21,7 +24,11 @@ const AUTH = {
   AUTH_AUDIENCE: "https://api.byebyedoody.com",
   AUTH_JWKS_URL: `https://${AUTH0_DOMAIN}/.well-known/jwks.json`
 };
-if (!TOKEN) { console.error("Missing CLOUDFLARE_API_TOKEN repository secret."); process.exit(1); }
+if (!TOKEN) { console.error("The CLOUDFLARE_API_TOKEN secret is missing or does not contain a key."); process.exit(1); }
+{
+  const v = await fetch("https://api.cloudflare.com/client/v4/user/tokens/verify", { headers: { Authorization: `Bearer ${TOKEN}` } }).then((r) => r.json()).catch(() => ({}));
+  console.log("Key verification: " + (v.success ? "valid, status " + (v.result && v.result.status) : "NOT valid (" + (v.errors || []).map((e) => e.code + ": " + e.message).join("; ") + ")"));
+}
 
 async function cf(path, options = {}) {
   const res = await fetch("https://api.cloudflare.com/client/v4" + path, {
