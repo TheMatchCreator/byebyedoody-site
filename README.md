@@ -55,6 +55,7 @@ The marketplace is not yet a live booking or dispatch system.
 
 - `MARKETPLACE_PLATFORM_PLAN.md` — product and technical specification.
 - `LEGAL_COMPLIANCE_DRAFT.md` — issues and draft compliance checklist for professional review.
+- `tests/marketplace-release-checklist.md` — non-production database, authentication, authorization, privacy, workflow, and release test checklist.
 - `migrations/0001_marketplace_foundation.sql` — initial Cloudflare D1/SQLite schema; not yet applied to a database.
 - `migrations/0002_marketplace_operations.sql` — customer properties, provider availability, private document metadata, payment ledger, issues, notifications, and privacy request schema; not yet applied.
 - `migrations/0003_referral_invitations.sql` — customer-selected quote invitation, provider response, and customer matching-consent fields; not yet applied.
