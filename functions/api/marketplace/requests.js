@@ -1,3 +1,4 @@
+import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { requireUser } from "../../_shared/marketplace-auth.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -67,6 +68,8 @@ export async function onRequest({ request, env }) {
 
   if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
   if (user.role !== "customer") return json({ error: "Only customer accounts can submit service requests." }, 403);
+  const limited = await enforceRateLimit(env, user.id, "customer_request_create", 6, 3600);
+  if (limited) return limited;
   const length = Number(request.headers.get("Content-Length") || 0);
   if (length > 12000) return json({ error: "The request is too large." }, 413);
 
