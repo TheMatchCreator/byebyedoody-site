@@ -15,7 +15,7 @@ Responsive website and staged marketplace project for a Sacramento-area dog-wast
 - `marketplace/marketplace.css` — Marketplace page styling
 - `marketplace/customer-request.html` — customer service inquiry form (not a booking)
 - `app/index.html` — customer/provider/admin portal workspace page
-- `app/portal.js` — portal navigation, protected API client, provider onboarding form, customer/provider data screens, and admin queue views; waits for the managed OIDC adapter and does not persist access tokens
+- `app/portal.js` — portal navigation, protected API client, provider onboarding form, customer/provider data screens, quote selection, referral invitation responses, and admin queue views; waits for the managed OIDC adapter and does not persist access tokens
 - `app/portal.css` — responsive portal workspace styling
 - `functions/api/marketplace/status.js` — public readiness endpoint; reports configuration presence only
 - `functions/_shared/marketplace-auth.js` — RS256 OIDC/JWKS token verification helper for marketplace APIs
