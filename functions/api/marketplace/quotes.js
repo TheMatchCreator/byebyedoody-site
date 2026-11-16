@@ -22,7 +22,7 @@ export async function onRequest({ request, env }) {
     try {
       const result = user.role === "provider"
         ? await env.DB.prepare("SELECT q.id, q.request_id, q.provider_service_rate_cents, q.currency, q.terms_summary, q.status, q.created_at FROM provider_quotes q WHERE q.provider_id = ? ORDER BY q.created_at DESC LIMIT 100").bind(user.id).all()
-        : await env.DB.prepare("SELECT q.id, q.request_id, q.provider_service_rate_cents, q.currency, q.terms_summary, q.status, q.created_at FROM provider_quotes q JOIN service_requests r ON r.id = q.request_id WHERE r.customer_id = ? ORDER BY q.created_at DESC LIMIT 100").bind(user.id).all();
+        : await env.DB.prepare("SELECT q.id, q.request_id, q.provider_service_rate_cents, q.currency, q.terms_summary, q.status, q.created_at, i.status AS invitation_status FROM provider_quotes q JOIN service_requests r ON r.id = q.request_id LEFT JOIN referral_invitations i ON i.quote_id = q.id WHERE r.customer_id = ? ORDER BY q.created_at DESC LIMIT 100").bind(user.id).all();
       return json({ quotes: result.results || [] });
     } catch (error) {
       console.error("Marketplace quote list failed:", error?.message || "database_error");
