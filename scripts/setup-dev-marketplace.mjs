@@ -47,8 +47,13 @@ async function cf(path, options = {}) {
 let accountId = process.env.CLOUDFLARE_ACCOUNT_ID || "";
 if (!accountId) {
   const accounts = await cf("/accounts?per_page=50");
+  console.log(`This key can reach ${accounts.length} Cloudflare account(s).`);
   for (const a of accounts) {
-    try { await cf(`/accounts/${a.id}/pages/projects/${PROJECT}`); accountId = a.id; break; } catch {}
+    let names = [];
+    try { names = (await cf(`/accounts/${a.id}/pages/projects?per_page=50`)).map((p) => p.name); }
+    catch (e) { console.log(`- account "${a.name}": could not list Pages projects (${e.message.replace(/^.*failed: /, "")})`); continue; }
+    console.log(`- account "${a.name}": Pages projects: ${names.join(", ") || "(none)"}`);
+    if (names.includes(PROJECT)) { accountId = a.id; break; }
   }
   if (!accountId) throw new Error(`No account reachable with this token has a Pages project named ${PROJECT}. Check the token's permissions.`);
 }
