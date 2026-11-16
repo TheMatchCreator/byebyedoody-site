@@ -5,7 +5,7 @@ This checklist is for a disposable, non-production Cloudflare D1 database and a 
 ## Database setup
 
 - [ ] Create a new non-production D1 database.
-- [ ] Apply migrations exactly once, in this order: `0001_marketplace_foundation.sql`, `0002_marketplace_operations.sql`, `0003_referral_invitations.sql`, `0004_agreement_acknowledgements.sql`, `0005_notification_read_state.sql`, `0006_api_rate_limits.sql`.
+- [ ] Apply migrations exactly once, in this order: `0001_marketplace_foundation.sql`, `0002_marketplace_operations.sql`, `0003_referral_invitations.sql`, `0004_agreement_acknowledgements.sql`, `0005_notification_read_state.sql`, `0006_api_rate_limits.sql`, `0007_audit_review_indexes.sql`.
 - [ ] Confirm all tables, indexes, columns, and foreign keys exist.
 - [ ] Bind the test database as `DB` only in the test Pages environment.
 - [ ] Generate a fresh 32-byte encryption key and set it as `DATA_ENCRYPTION_KEY` in the test environment. Do not commit it or send it through chat.
@@ -60,6 +60,8 @@ This checklist is for a disposable, non-production Cloudflare D1 database and a 
 - [ ] Confirm `GET /api/marketplace/admin-referrals` is denied to non-admins and inactive admins.
 - [ ] Confirm the admin referral response contains no customer names, email, phone, street address, access notes, or private notes.
 - [ ] Confirm the admin response includes only operational ZIP/service/quote/referral status fields needed for oversight.
+- [ ] Verify `/api/marketplace/admin-audit` is admin-only, newest-first, bounded to 100 records, and excludes customer contact details, street addresses, and private notes.
+- [ ] Verify new customer requests and provider applications queue in-app notifications for active admins only.
 - [ ] Confirm privacy and issue status changes create corresponding audit events.
 - [ ] Race-test simultaneous admin decisions on one provider application; stale decisions must return a conflict and must not overwrite a newer status.
 - [ ] Confirm quote creation, availability changes, and service-area changes commit with their audit records atomically; failed writes must not leave orphaned audit events or records.
