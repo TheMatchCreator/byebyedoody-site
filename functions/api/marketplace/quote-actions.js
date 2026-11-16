@@ -31,10 +31,10 @@ export async function onRequest({ request, env }) {
   if (action === "decline" && user.role !== "customer") return json({ error: "Only the customer who owns the request can decline a quote." }, 403);
   try {
     const owner = action === "withdraw"
-      ? await env.DB.prepare("SELECT q.id FROM provider_quotes q JOIN provider_profiles p ON p.user_id = q.provider_id WHERE q.id = ? AND q.provider_id = ? AND q.status = 'offered'
-        AND NOT EXISTS (SELECT 1 FROM referral_invitations i WHERE i.quote_id = q.id AND i.status IN ('awaiting_provider','accepted_by_provider'))").bind(quoteId, user.id).first()
-      : await env.DB.prepare("SELECT q.id FROM provider_quotes q JOIN service_requests r ON r.id = q.request_id WHERE q.id = ? AND r.customer_id = ? AND q.status = 'offered'
-        AND NOT EXISTS (SELECT 1 FROM referral_invitations i WHERE i.quote_id = q.id AND i.status = 'awaiting_provider')").bind(quoteId, user.id).first();
+      ? await env.DB.prepare(`SELECT q.id FROM provider_quotes q JOIN provider_profiles p ON p.user_id = q.provider_id WHERE q.id = ? AND q.provider_id = ? AND q.status = 'offered'
+        AND NOT EXISTS (SELECT 1 FROM referral_invitations i WHERE i.quote_id = q.id AND i.status IN ('awaiting_provider','accepted_by_provider'))`).bind(quoteId, user.id).first()
+      : await env.DB.prepare(`SELECT q.id FROM provider_quotes q JOIN service_requests r ON r.id = q.request_id WHERE q.id = ? AND r.customer_id = ? AND q.status = 'offered'
+        AND NOT EXISTS (SELECT 1 FROM referral_invitations i WHERE i.quote_id = q.id AND i.status = 'awaiting_provider')`).bind(quoteId, user.id).first();
     if (!owner) return json({ error: "An active quote belonging to your account was not found." }, 404);
     const nextStatus = action === "withdraw" ? "withdrawn" : "declined";
     await env.DB.batch([
