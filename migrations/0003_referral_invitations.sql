@@ -5,6 +5,10 @@
 
 PRAGMA foreign_keys = ON;
 
+-- Explicit opt-in fields used by customer consent and provider matching APIs.
+ALTER TABLE service_requests ADD COLUMN matching_consent_at TEXT;
+ALTER TABLE service_requests ADD COLUMN matching_consent_version TEXT;
+
 CREATE TABLE IF NOT EXISTS referral_invitations (
   id TEXT PRIMARY KEY,
   request_id TEXT NOT NULL REFERENCES service_requests(id) ON DELETE CASCADE,
