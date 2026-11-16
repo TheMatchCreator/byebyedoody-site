@@ -40,12 +40,17 @@ export async function onRequest({ request, env }) {
     if (Number(count?.count || 0) >= 20) return json({ error: "You can list up to 20 active service ZIP codes." }, 409);
     const id = crypto.randomUUID();
     try {
-      await env.DB.prepare("INSERT INTO provider_service_areas (id, provider_id, zip_code, active) VALUES (?, ?, ?, 1) ON CONFLICT(provider_id, zip_code) DO UPDATE SET active = 1")
-        .bind(id, user.id, zip).run();
-      await env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'provider_service_area_added', 'provider_service_area', ?)")
-        .bind(crypto.randomUUID(), user.id, zip).run();
+      await env.DB.batch([
+        env.DB.prepare("INSERT INTO provider_service_areas (id, provider_id, zip_code, active) VALUES (?, ?, ?, 1) ON CONFLICT(provider_id, zip_code) DO UPDATE SET active = 1")
+          .bind(id, user.id, zip),
+        env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'provider_service_area_added', 'provider_service_area', ?)")
+          .bind(crypto.randomUUID(), user.id, zip)
+      ]);
       return json({ ok: true, zip, active: true }, 201);
     } catch (error) {
+      if (String(error?.message || "").includes("provider_service_area_limit")) {
+        return json({ error: "You can list up to 20 active service ZIP codes." }, 409);
+      }
       console.error("Provider service area add failed:", error?.message || "database_error");
       return json({ error: "Service area could not be saved." }, 500);
     }
