@@ -75,8 +75,9 @@ export async function onRequest({ request, env }) {
          WHERE r.id = ? AND r.matching_consent_at IS NOT NULL
            AND r.status IN ('submitted','open_for_referral','quoted')
            AND EXISTS (SELECT 1 FROM provider_service_areas z WHERE z.provider_id = ? AND z.zip_code = r.service_zip AND z.active = 1)
-           AND EXISTS (SELECT 1 FROM provider_availability a WHERE a.provider_id = ? AND a.status = 'available' AND a.starts_at <= ? AND a.ends_at >= ?)`
-      ).bind(id, user.id, rate, terms, requestId, user.id, user.id, end, start),
+           AND EXISTS (SELECT 1 FROM provider_availability a WHERE a.provider_id = ? AND a.status = 'available' AND a.starts_at <= ? AND a.ends_at >= ?)
+           AND EXISTS (SELECT 1 FROM provider_profiles p JOIN app_users u ON u.id = p.user_id WHERE p.user_id = ? AND p.onboarding_status = 'approved' AND u.account_status = 'active')`
+      ).bind(id, user.id, rate, terms, requestId, user.id, user.id, end, start, user.id),
       env.DB.prepare(
         "UPDATE service_requests SET status = 'quoted' WHERE id = ? AND status IN ('submitted','open_for_referral','quoted') AND EXISTS (SELECT 1 FROM provider_quotes WHERE id = ?)"
       ).bind(requestId, id),
