@@ -67,17 +67,26 @@ export async function onRequest({ request, env }) {
     const id = crypto.randomUUID();
     // Keep quote creation, request-state update, and audit record atomic.
     // The unique partial index in migration 0002 remains the concurrency guard.
-    await env.DB.batch([
+    const writes = await env.DB.batch([
       env.DB.prepare(
-        "INSERT INTO provider_quotes (id, request_id, provider_id, provider_service_rate_cents, currency, terms_summary, status) VALUES (?, ?, ?, ?, 'usd', ?, 'offered')"
-      ).bind(id, requestId, user.id, rate, terms),
+        `INSERT INTO provider_quotes (id, request_id, provider_id, provider_service_rate_cents, currency, terms_summary, status)
+         SELECT ?, r.id, ?, ?, 'usd', ?, 'offered'
+         FROM service_requests r
+         WHERE r.id = ? AND r.matching_consent_at IS NOT NULL
+           AND r.status IN ('submitted','open_for_referral','quoted')
+           AND EXISTS (SELECT 1 FROM provider_service_areas z WHERE z.provider_id = ? AND z.zip_code = r.service_zip AND z.active = 1)
+           AND EXISTS (SELECT 1 FROM provider_availability a WHERE a.provider_id = ? AND a.status = 'available' AND a.starts_at <= ? AND a.ends_at >= ?)`
+      ).bind(id, user.id, rate, terms, requestId, user.id, user.id, end, start),
       env.DB.prepare(
-        "UPDATE service_requests SET status = 'quoted' WHERE id = ? AND status IN ('submitted','open_for_referral','quoted')"
-      ).bind(requestId),
+        "UPDATE service_requests SET status = 'quoted' WHERE id = ? AND status IN ('submitted','open_for_referral','quoted') AND EXISTS (SELECT 1 FROM provider_quotes WHERE id = ?)"
+      ).bind(requestId, id),
       env.DB.prepare(
-        "INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'provider_quote_submitted', 'provider_quote', ?)"
+        "INSERT INTO audit_events (id, actor_id, action, object_type, object_id) SELECT ?, ?, 'provider_quote_submitted', 'provider_quote', ? WHERE changes() = 1"
       ).bind(crypto.randomUUID(), user.id, id)
     ]);
+    if (!writes[0]?.meta?.changes) {
+      return json({ error: "This request closed or your service area/availability changed before the quote could be saved." }, 409);
+    }
     return json({ ok: true, quote: { id, requestId, providerRateCents: rate, currency: "usd", terms, status: "offered" }, message: "Your independently set quote has been sent for customer review. No booking or payment has been created." }, 201);
   } catch (error) {
     console.error("Provider quote submission failed:", error?.message || "database_error");
