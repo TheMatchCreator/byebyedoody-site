@@ -5,7 +5,7 @@ This checklist is for a disposable, non-production Cloudflare D1 database and a 
 ## Database setup
 
 - [ ] Create a new non-production D1 database.
-- [ ] Apply migrations exactly once, in this order: `0001_marketplace_foundation.sql`, `0002_marketplace_operations.sql`, `0003_referral_invitations.sql`, `0004_agreement_acknowledgements.sql`, `0005_notification_read_state.sql`.
+- [ ] Apply migrations exactly once, in this order: `0001_marketplace_foundation.sql`, `0002_marketplace_operations.sql`, `0003_referral_invitations.sql`, `0004_agreement_acknowledgements.sql`, `0005_notification_read_state.sql`, `0006_api_rate_limits.sql`.
 - [ ] Confirm all tables, indexes, columns, and foreign keys exist.
 - [ ] Bind the test database as `DB` only in the test Pages environment.
 - [ ] Generate a fresh 32-byte encryption key and set it as `DATA_ENCRYPTION_KEY` in the test environment. Do not commit it or send it through chat.
