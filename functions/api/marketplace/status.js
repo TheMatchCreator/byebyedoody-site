@@ -19,9 +19,30 @@ export async function onRequestGet({ env }) {
       rateLimitStorage = false;
     }
   }
+  let coreMarketplaceSchema = false;
+  let notificationSchema = false;
+  let auditSchema = false;
+  if (env.DB) {
+    try {
+      await env.DB.prepare("SELECT id FROM app_users LIMIT 1").first();
+      await env.DB.prepare("SELECT id FROM service_requests LIMIT 1").first();
+      coreMarketplaceSchema = true;
+    } catch { coreMarketplaceSchema = false; }
+    try {
+      await env.DB.prepare("SELECT id, read_at FROM notification_events LIMIT 1").first();
+      notificationSchema = true;
+    } catch { notificationSchema = false; }
+    try {
+      await env.DB.prepare("SELECT id, created_at FROM audit_events LIMIT 1").first();
+      auditSchema = true;
+    } catch { auditSchema = false; }
+  }
   const checks = {
     databaseBinding: Boolean(env.DB),
+    coreMarketplaceSchema,
     rateLimitStorage,
+    notificationSchema,
+    auditSchema,
     authenticationProvider: Boolean(env.AUTH_ISSUER && env.AUTH_AUDIENCE && env.AUTH_JWKS_URL),
     privateDataEncryption: Boolean(env.DATA_ENCRYPTION_KEY),
     privateDocumentStorage: Boolean(env.PRIVATE_DOCUMENTS),
