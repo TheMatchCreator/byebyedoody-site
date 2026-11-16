@@ -14,7 +14,9 @@ Responsive website and staged marketplace project for a Sacramento-area dog-wast
 - `marketplace/index.html` — Marketplace entry page for customers, providers, and business contacts
 - `marketplace/marketplace.css` — Marketplace page styling
 - `marketplace/customer-request.html` — customer service inquiry form (not a booking)
-- `app/index.html` — staged customer/provider/admin portal entry page; sign-in intentionally disabled
+- `app/index.html` — customer/provider/admin portal workspace page
+- `app/portal.js` — portal navigation, protected API client, provider onboarding form, customer/provider data screens, and admin queue views; waits for the managed OIDC adapter and does not persist access tokens
+- `app/portal.css` — responsive portal workspace styling
 - `functions/api/marketplace/status.js` — public readiness endpoint; reports configuration presence only
 - `functions/_shared/marketplace-auth.js` — RS256 OIDC/JWKS token verification helper for marketplace APIs
 - `functions/api/marketplace/requests.js` — authenticated customer request create/list API; private address and notes are AES-GCM encrypted before storage
@@ -54,7 +56,7 @@ The marketplace is not yet a live booking or dispatch system.
 - `GET /api/marketplace/status` — safe readiness summary. It never returns secret values or personal data; a successful HTTP response does not mean the marketplace is launch-ready.
 - The owner selected an independent service-provider referral-agency direction, subject to California employment counsel confirming the actual business model and practices.
 - The current fee design target is a separately disclosed customer-paid platform fee; it must not be deducted from the provider's independently agreed rate. The exact formula is not approved for production.
-- No customer/provider sign-in is configured yet. The request API is code-only until an OIDC issuer, audience, JWKS URL, active account rows, D1 binding, and encryption key are configured and tested. No password recovery, identity-document verification, live GPS tracking, automatic dispatch, booking acceptance, Stripe Connect marketplace payments, or payouts are active. Provider application attestations and admin review endpoints are scaffolding and require counsel-approved checks and operational procedures.
+- The portal UI now includes customer request/quote views, provider application/ZIP/availability tools, privacy and issue forms, and administrator overview/application review/matching screens. These screens call protected APIs but remain locked until a managed OIDC SDK supplies `window.BBDOODY_AUTH.getAccessToken()`. No customer/provider sign-in is configured yet. The request API is code-only until an OIDC issuer, audience, JWKS URL, active account rows, D1 binding, and encryption key are configured and tested. No password recovery, identity-document verification, live GPS tracking, automatic dispatch, booking acceptance, Stripe Connect marketplace payments, or payouts are active. Provider application attestations and admin review endpoints are scaffolding and require counsel-approved checks and operational procedures.
 - Do not collect Social Security numbers, government ID images, bank credentials, or card data in website forms or email.
 
 ## Required before marketplace launch
