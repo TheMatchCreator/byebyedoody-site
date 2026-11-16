@@ -30,6 +30,7 @@ export async function requireUser(request, env, allowedRoles = []) {
     if (claims.iss !== issuer || !(claims.aud === audience || (Array.isArray(claims.aud) && claims.aud.includes(audience)))) throw new Error("issuer");
     if (!Number.isFinite(claims.exp) || claims.exp <= now || (claims.nbf && claims.nbf > now)) throw new Error("expiry");
     if (typeof claims.sub !== "string" || !claims.sub || claims.sub.length > 200) throw new Error("subject");
+    if (claims.email_verified !== true) throw new Error("email_not_verified");
     const keyResponse = await fetch(jwksUrl, { headers: { Accept: "application/json" } });
     if (!keyResponse.ok) throw new Error("keys");
     const jwks = await keyResponse.json();
