@@ -5,3 +5,7 @@
 .portal-readiness .is-ready{color:#28613a}
 .portal-readiness .is-missing{color:#96502f}
 .portal-readiness .portal-readiness-note{display:block;background:#fbfaf4;border-color:#e8dfbf;color:#735f2d}
+
+.auth-bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;max-width:1100px;margin:0 auto 16px;padding:14px 20px;border:1px solid #d9e4dd;border-radius:14px;background:#f6faf7}
+.auth-bar p{margin:0;flex:1 1 220px}
+.auth-bar [hidden]{display:none}
