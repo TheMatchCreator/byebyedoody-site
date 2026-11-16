@@ -13,6 +13,9 @@ Responsive website and staged marketplace project for a Sacramento-area dog-wast
 - `privacy.html` — Draft privacy notice; legal review required
 - `marketplace/index.html` — Marketplace entry page for customers, providers, and business contacts
 - `marketplace/marketplace.css` — Marketplace page styling
+- `marketplace/customer-request.html` — customer service inquiry form (not a booking)
+- `app/index.html` — staged customer/provider/admin portal entry page; sign-in intentionally disabled
+- `functions/api/marketplace/status.js` — public readiness endpoint; reports configuration presence only
 - `404.html` — Custom not-found page
 
 ## Existing hosting context
@@ -40,6 +43,8 @@ The marketplace is not yet a live booking or dispatch system.
 - `MARKETPLACE_PLATFORM_PLAN.md` — product and technical specification.
 - `LEGAL_COMPLIANCE_DRAFT.md` — issues and draft compliance checklist for professional review.
 - `migrations/0001_marketplace_foundation.sql` — initial Cloudflare D1/SQLite schema; not yet applied to a database.
+- `migrations/0002_marketplace_operations.sql` — customer properties, provider availability, private document metadata, payment ledger, issues, notifications, and privacy request schema; not yet applied.
+- `GET /api/marketplace/status` — safe readiness summary. It never returns secret values or personal data; a successful HTTP response does not mean the marketplace is launch-ready.
 - The owner selected an independent service-provider referral-agency direction, subject to California employment counsel confirming the actual business model and practices.
 - The current fee design target is a separately disclosed customer-paid platform fee; it must not be deducted from the provider's independently agreed rate. The exact formula is not approved for production.
 - No secure customer/provider accounts, password recovery, provider verification, live GPS matching, job dispatch, Stripe Connect marketplace payments, or payouts are active.
@@ -49,8 +54,8 @@ The marketplace is not yet a live booking or dispatch system.
 
 1. Confirm the referral-agency model and all provider/customer agreements with California employment counsel.
 2. Obtain written City of Sacramento guidance on pet-waste collection, bagging, hauling, and disposal for each property/service category. Do not enable off-site hauling or commercial/multifamily jobs until lawful arrangements are confirmed.
-3. Select and authorize a managed authentication service; implement verified email, account recovery, session security, and administrator MFA.
-4. Create a D1 database, review and apply the migration, and bind it to the correct Pages/Worker environment.
+3. Select and authorize a managed authentication service; configure `AUTH_ISSUER` and `AUTH_AUDIENCE` only after implementing and testing token verification, verified email, account recovery, session security, and administrator MFA.
+4. Create a non-production D1 database, review and apply migrations `0001` and `0002` in order, then bind it as `DB` to the correct Pages/Worker environment. Do not point an untested migration at production data.
 5. Implement server-side authorization, validation, abuse protection, audit logs, privacy controls, and retention/deletion procedures.
 6. Select and authorize map/geocoding and notification services. Request GPS only with explicit permission and provide manual address/ZIP alternatives.
 7. Authorize Stripe Connect and have the precise customer charge, provider payment, refund, dispute, and payout flow reviewed before test transactions.
