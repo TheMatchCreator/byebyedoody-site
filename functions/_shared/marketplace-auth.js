@@ -28,7 +28,7 @@ export async function requireUser(request, env, allowedRoles = []) {
     const claims = JSON.parse(new TextDecoder().decode(b64url(parts[1])));
     if (header.alg !== "RS256" || !header.kid) throw new Error("algorithm");
     const now = Math.floor(Date.now() / 1000);
-    if (claims.iss !== issuer || !(claims.aud === audience || (Array.isArray(claims.aud) && claims.aud.includes(audience)))) throw new Error("issuer");
+    if (String(claims.iss || "").replace(/\/$/, "") !== issuer || !(claims.aud === audience || (Array.isArray(claims.aud) && claims.aud.includes(audience)))) throw new Error("issuer");
     if (!Number.isFinite(claims.exp) || claims.exp <= now ||
         (claims.nbf !== undefined && (!Number.isFinite(claims.nbf) || claims.nbf > now))) throw new Error("expiry");
     if (typeof claims.sub !== "string" || !claims.sub || claims.sub.length > 200) throw new Error("subject");
