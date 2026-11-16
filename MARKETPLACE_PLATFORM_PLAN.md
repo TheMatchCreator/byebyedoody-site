@@ -83,12 +83,20 @@ Use role-based access, encryption in transit and at rest, input validation, CSRF
 - Use explicit customer and provider consent before using location. Offer manual ZIP/address entry if location permission is denied.
 - Do not claim the AI has found a customer unless that customer actually submitted a request or opted in.
 
-## 25% platform fee — decision required before payment code
+## Selected operating direction: independent referral-agency model (not yet legally approved)
+
+Owner selected the independent service-provider referral-agency direction. This is a design choice only; no worker has been classified and no live referral activity may begin until California employment counsel confirms that the actual business practices satisfy Labor Code section 2777. Providers must remain genuinely independent, operate under their own business names, supply their own tools, maintain their own clients, set/negotiate their own rates and hours, and freely accept or reject referrals without penalty. The platform must not set provider rates, mandate availability, require job acceptance, or supervise the manner of service. The platform may provide customer-provider connection and ancillary administrative services only to the extent permitted by law.
+
+## 25% customer-paid platform fee — selected target, payment implementation blocked pending review
+
+The owner's selected commercial target is a platform fee equal to 25% of the customer's final checkout total, shown as a separate line item and charged to the customer. The fee must never be deducted from the provider's independently set service rate. To make the math explicit: if a provider independently quotes $75, the platform fee would be $25 and the customer's final total would be $100. This is a 25% share of final checkout total, and a 1/3 add-on to the provider's quote. Do not hard-code a rate formula until counsel and accountant approve how the customer-facing fee is described and whether it is compatible with the referral-agency rules.
+
+
 
 The legal and accounting treatment depends on whether providers are employees or genuinely independent service providers.
 
 - If W-2 employees: the business may design an internal 25% gross-revenue target, but must pay lawful wages, overtime, reimburse required business expenses, handle payroll taxes, and workers' compensation. Do not automatically treat the remaining 75% as employee pay or label it a contractor commission.
-- If a bona fide referral agency: California Labor Code section 2777 expressly lists yard cleanup and animal services among potentially covered referrals, but only if every statutory condition is met. Providers must operate independently, use their own tools/supplies, provide services under their own name, set/negotiate their own rates, choose their hours, accept/reject clients without penalty, maintain other clients, and meet applicable business-registration requirements. The referral-agency fee may be charged to the client and cannot be deducted from the provider's rate. A central dispatch system, fixed provider rates, mandatory acceptance, branded uniforms, close supervision, or punitive GPS monitoring could undermine this model. Get California employment counsel to approve the actual operation before launch.
+- Selected direction: bona fide referral agency, subject to legal sign-off. California Labor Code section 2777 expressly lists yard cleanup and animal services among potentially covered referrals, but only if every statutory condition is met. Providers must operate independently, use their own tools/supplies, provide services under their own name, set/negotiate their own rates, choose their hours, accept/reject clients without penalty, maintain other clients, and meet applicable business-registration requirements. A customer-paid referral fee must not be deducted from the provider's rate. A central dispatch system, fixed provider rates, mandatory acceptance, branded uniforms, close supervision, or punitive GPS monitoring could undermine this model. Get California employment counsel to approve the actual operation before launch.
 - Do not activate the 25% fee or provider payout split until the written agreements, checkout disclosures, tax handling, and Stripe Connect configuration are approved.
 
 ## Launch gates
@@ -96,7 +104,7 @@ The legal and accounting treatment depends on whether providers are employees or
 1. Confirm the legal worker model and obtain California employment counsel review.
 2. Obtain written City of Sacramento guidance on whether collecting and transporting dog waste from residential yards, commercial properties, and multifamily properties requires a commercial solid-waste franchise and which disposal destinations are authorized. The city code expressly regulates commercial waste collection/transport and brokering; do not assume pet waste is exempt.
 3. Confirm insurance: general liability, commercial auto/business-use, workers' compensation if employees, and any required coverage for providers.
-4. Approve the 25% fee structure, customer disclosure, refund rules, taxes, and Stripe Connect responsibilities.
+4. Obtain written legal/accounting approval of the customer-paid 25%-of-final-total platform fee, customer disclosure, refund rules, taxes, and Stripe Connect responsibilities.
 5. Choose authentication, maps/geocoding, SMS/email, AI API, and file-storage services; store keys only as Cloudflare secrets.
 6. Implement and test database migrations, API, login/recovery, customer booking, provider onboarding, admin review, matching, job lifecycle, location consent, payments, webhooks, refunds, payouts, and audit logs.
 7. Test with fake data and Stripe test mode. No real charges or payouts until owner approval.
