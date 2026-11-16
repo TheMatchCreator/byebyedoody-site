@@ -131,3 +131,53 @@ CREATE INDEX IF NOT EXISTS idx_privacy_requests_status
 CREATE UNIQUE INDEX IF NOT EXISTS idx_quotes_one_active_per_provider_request
   ON provider_quotes(request_id, provider_id)
   WHERE status IN ('offered','accepted_by_customer');
+
+
+-- Database-enforced provider limits prevent concurrent API requests from
+-- exceeding the maximum active service ZIPs or overlapping availability windows.
+CREATE TRIGGER IF NOT EXISTS trg_provider_service_area_limit_insert
+BEFORE INSERT ON provider_service_areas
+WHEN NEW.active = 1
+ AND (SELECT COUNT(*) FROM provider_service_areas
+      WHERE provider_id = NEW.provider_id AND active = 1) >= 20
+BEGIN
+  SELECT RAISE(ABORT, 'provider_service_area_limit');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_provider_service_area_limit_update
+BEFORE UPDATE OF active, provider_id ON provider_service_areas
+WHEN NEW.active = 1
+ AND (SELECT COUNT(*) FROM provider_service_areas
+      WHERE provider_id = NEW.provider_id AND active = 1 AND id != NEW.id) >= 20
+BEGIN
+  SELECT RAISE(ABORT, 'provider_service_area_limit');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_provider_availability_no_overlap_insert
+BEFORE INSERT ON provider_availability
+WHEN NEW.status IN ('available','unavailable')
+ AND EXISTS (
+   SELECT 1 FROM provider_availability a
+   WHERE a.provider_id = NEW.provider_id
+     AND a.status IN ('available','unavailable')
+     AND a.starts_at < NEW.ends_at
+     AND a.ends_at > NEW.starts_at
+ )
+BEGIN
+  SELECT RAISE(ABORT, 'provider_availability_overlap');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_provider_availability_no_overlap_update
+BEFORE UPDATE OF provider_id, starts_at, ends_at, status ON provider_availability
+WHEN NEW.status IN ('available','unavailable')
+ AND EXISTS (
+   SELECT 1 FROM provider_availability a
+   WHERE a.provider_id = NEW.provider_id
+     AND a.id != NEW.id
+     AND a.status IN ('available','unavailable')
+     AND a.starts_at < NEW.ends_at
+     AND a.ends_at > NEW.starts_at
+ )
+BEGIN
+  SELECT RAISE(ABORT, 'provider_availability_overlap');
+END;
