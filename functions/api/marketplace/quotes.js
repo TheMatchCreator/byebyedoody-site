@@ -48,7 +48,7 @@ export async function onRequest({ request, env }) {
       return json({ error: "Only approved, active providers can submit quotes." }, 403);
     }
     const job = await env.DB.prepare(
-      "SELECT r.id, r.service_zip, r.requested_window_start, r.requested_window_end, r.status FROM service_requests r JOIN provider_service_areas z ON z.zip_code = r.service_zip AND z.provider_id = ? AND z.active = 1 WHERE r.id = ?"
+      "SELECT r.id, r.service_zip, r.requested_window_start, r.requested_window_end, r.status FROM service_requests r JOIN provider_service_areas z ON z.zip_code = r.service_zip AND z.provider_id = ? AND z.active = 1 WHERE r.id = ? AND r.matching_consent_at IS NOT NULL"
     ).bind(user.id, requestId).first();
     if (!job || !["submitted", "open_for_referral", "quoted"].includes(job.status)) {
       return json({ error: "This request is not open for a quote in your service area." }, 404);
