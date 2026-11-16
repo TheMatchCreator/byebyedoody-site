@@ -41,6 +41,8 @@ This checklist is for a disposable, non-production Cloudflare D1 database and a 
 - [ ] Confirm duplicate active quotes and duplicate pending invitations are rejected.
 - [ ] Confirm a customer can cancel only their own unaccepted request; pending invitations cancel, offered quotes expire, and the action is audited.
 - [ ] Race-test customer cancellation against provider acceptance; exactly one valid state transition must win, and an accepted invitation must prevent cancellation.
+- [ ] Race-test quote withdrawal/decline against customer invitation selection; a withdrawn or declined quote must never receive a new invitation.
+- [ ] Race-test quote creation against request cancellation and provider suspension; no quote may be created for a closed request or inactive provider.
 - [ ] Confirm D1 triggers enforce the 20-active-ZIP limit and prevent overlapping provider availability windows, including concurrent requests.
 - [ ] Confirm customer quote selection requires explicit matching consent.
 - [ ] Confirm invitation accept, decline, and customer cancellation are owner/role restricted and race-tested.
