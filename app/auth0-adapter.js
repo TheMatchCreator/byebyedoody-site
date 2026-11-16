@@ -25,9 +25,12 @@
   // The server creates it only from the signed token's customer role (never from this request).
   async function ensureCustomerAccount(c) {
     const claims = await c.getIdTokenClaims();
-    if (!claims || claims[ROLE_CLAIM] !== "customer") return "";
+    const role = claims && claims[ROLE_CLAIM];
+    if (role && role !== "customer") return "";
+    try { if (sessionStorage.getItem("bbd_account_checked") === "yes") return ""; } catch {}
     const token = await c.getTokenSilently();
     const res = await fetch("/api/marketplace/account", { method: "POST", headers: { Authorization: "Bearer " + token, Accept: "application/json" }, cache: "no-store" });
+    if (res.ok || res.status === 429) { try { sessionStorage.setItem("bbd_account_checked", "yes"); } catch {} }
     if (res.ok) return " Your customer account is ready.";
     const data = await res.json().catch(() => ({}));
     return " (Account setup: " + (data.error || "could not be completed") + ")";
@@ -59,7 +62,8 @@
       if (signedIn) {
         const user = await c.getUser();
         let extra = "";
-        if (justSignedIn) { justSignedIn = false; try { extra = await ensureCustomerAccount(c); } catch { extra = " (Account setup could not be completed.)"; } }
+        try { extra = await ensureCustomerAccount(c); } catch (e) { extra = " (Account setup could not be completed: " + ((e && e.message) || "unknown error") + ")"; }
+        justSignedIn = false;
         setStatus("Signed in" + (user && user.email ? " as " + user.email : "") + "." + extra);
       } else {
         setStatus("You are not signed in.");
