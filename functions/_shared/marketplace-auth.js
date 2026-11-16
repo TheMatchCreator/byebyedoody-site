@@ -20,6 +20,7 @@ export async function requireUser(request, env, allowedRoles = []) {
   }
   const token = request.headers.get("Authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) return { response: json({ error: "Sign-in is required." }, 401) };
+  if (token.length > 12000) return { response: json({ error: "Your session token is invalid. Please sign in again." }, 401) };
   try {
     const parts = token.split(".");
     if (parts.length !== 3) throw new Error("token");
@@ -28,14 +29,16 @@ export async function requireUser(request, env, allowedRoles = []) {
     if (header.alg !== "RS256" || !header.kid) throw new Error("algorithm");
     const now = Math.floor(Date.now() / 1000);
     if (claims.iss !== issuer || !(claims.aud === audience || (Array.isArray(claims.aud) && claims.aud.includes(audience)))) throw new Error("issuer");
-    if (!Number.isFinite(claims.exp) || claims.exp <= now || (claims.nbf && claims.nbf > now)) throw new Error("expiry");
+    if (!Number.isFinite(claims.exp) || claims.exp <= now ||
+        (claims.nbf !== undefined && (!Number.isFinite(claims.nbf) || claims.nbf > now))) throw new Error("expiry");
     if (typeof claims.sub !== "string" || !claims.sub || claims.sub.length > 200) throw new Error("subject");
     if (claims.email_verified !== true) throw new Error("email_not_verified");
     const keyResponse = await fetch(jwksUrl, { headers: { Accept: "application/json" } });
     if (!keyResponse.ok) throw new Error("keys");
     const jwks = await keyResponse.json();
     const jwk = Array.isArray(jwks.keys) ? jwks.keys.find((key) => key.kid === header.kid && key.kty === "RSA" && key.use !== "enc") : null;
-    if (!jwk) throw new Error("key");
+    if (!jwk || (jwk.alg && jwk.alg !== "RS256") ||
+        (Array.isArray(jwk.key_ops) && !jwk.key_ops.includes("verify"))) throw new Error("key");
     const publicKey = await crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
     const valid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", publicKey, b64url(parts[2]), new TextEncoder().encode(parts[0] + "." + parts[1]));
     if (!valid) throw new Error("signature");
