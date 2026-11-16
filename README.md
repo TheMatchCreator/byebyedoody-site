@@ -1,50 +1,67 @@
 # ByeByeDoody
 
-A responsive website for a Sacramento-area dog waste cleanup service.
+Responsive website and staged marketplace project for a Sacramento-area dog-waste cleanup and referral service.
 
 ## Website pages
 
 - `index.html` — Home
 - `services.html` — Service overview
-- `quote.html` — Residential quote request
+- `quote.html` — Residential quote inquiry (not a confirmed booking)
 - `partners.html` — Property and business inquiries
-- `work-with-us.html` — Future work-interest form
+- `work-with-us.html` — Independent-provider information and expression of interest
 - `contact.html` — General contact form
-- `privacy.html` — Draft privacy notice
+- `privacy.html` — Draft privacy notice; legal review required
+- `marketplace/index.html` — Marketplace entry page for customers, providers, and business contacts
+- `marketplace/marketplace.css` — Marketplace page styling
 - `404.html` — Custom not-found page
 
-## Cloudflare Pages deployment
+## Existing hosting context
 
-Create a **new, separate** Cloudflare Pages project connected to this repository's `main` branch.
+The owner has an existing Cloudflare Pages project named `byebyedoody-site` and the previously shared project URL is `https://byebyedoody-site.pages.dev/`. The repository is `TheMatchCreator/byebyedoody-site`, branch `main`.
 
-- Framework preset: **None**
-- Build command: `exit 0` (no framework build is needed; this also supports the Pages Function)
-- Build output directory: `.`
-- Root directory (advanced): leave blank (use repository root)
-- Suggested Pages project name: `byebyedoody-pages` (keeps it separate from the existing Worker named `byebyedoody-site`)
-
-No existing Cloudflare project or DNS record needs to be changed to deploy this site separately.
+A GitHub commit does not prove that Cloudflare has deployed it. Check the Pages deployment status in the owner's Cloudflare account before telling customers a new page is live. Do not change DNS, domains, production settings, or unrelated Cloudflare projects without the owner's explicit approval.
 
 ## Inquiry form email delivery
 
-The forms post to the Cloudflare Pages Function at `/api/lead`. To enable email delivery, configure these environment variables in the new Pages project:
+The forms post to the Cloudflare Pages Function at `/api/lead`. It expects these Cloudflare environment variables:
 
-- `RESEND_API_KEY`
+- `RESEND_API_KEY` (secret)
 - `LEADS_TO_EMAIL`
 - `FROM_EMAIL`
 
-The sender domain must be verified with Resend. Until the variables are configured and a live test is successful, form delivery is **not active**. The forms should not be advertised as working until then.
+The sender domain must be verified with Resend for normal production delivery. If delivery fails, the website provides a direct email-app fallback to `byebyedoody123@aol.com`; the visitor must open the email app and press Send. That fallback is not automatic delivery.
 
-## Before public launch
+Never put API keys or other secrets in this repository or in chat messages.
 
-- Add and verify the business phone number and business email.
-- Confirm local requirements and an approved disposal destination for collected pet waste before offering hauling/disposal.
-- Review the privacy notice and contact practices.
-- Configure and test form email delivery.
-- Confirm service area, availability, and any advertised prices.
-- Review insurance and any worker arrangements before accepting work or hiring.
-- Connect only this repository to a new Cloudflare Pages project. Do not modify existing projects or DNS records without approval.
+## Marketplace status — foundation only
 
-## Current status
+The marketplace is not yet a live booking or dispatch system.
 
-Website source is in GitHub. Cloudflare Pages deployment and domain connection are pending account authorization and the owner's final approval.
+- `MARKETPLACE_PLATFORM_PLAN.md` — product and technical specification.
+- `LEGAL_COMPLIANCE_DRAFT.md` — issues and draft compliance checklist for professional review.
+- `migrations/0001_marketplace_foundation.sql` — initial Cloudflare D1/SQLite schema; not yet applied to a database.
+- The owner selected an independent service-provider referral-agency direction, subject to California employment counsel confirming the actual business model and practices.
+- The current fee design target is a separately disclosed customer-paid platform fee; it must not be deducted from the provider's independently agreed rate. The exact formula is not approved for production.
+- No secure customer/provider accounts, password recovery, provider verification, live GPS matching, job dispatch, Stripe Connect marketplace payments, or payouts are active.
+- Do not collect Social Security numbers, government ID images, bank credentials, or card data in website forms or email.
+
+## Required before marketplace launch
+
+1. Confirm the referral-agency model and all provider/customer agreements with California employment counsel.
+2. Obtain written City of Sacramento guidance on pet-waste collection, bagging, hauling, and disposal for each property/service category. Do not enable off-site hauling or commercial/multifamily jobs until lawful arrangements are confirmed.
+3. Select and authorize a managed authentication service; implement verified email, account recovery, session security, and administrator MFA.
+4. Create a D1 database, review and apply the migration, and bind it to the correct Pages/Worker environment.
+5. Implement server-side authorization, validation, abuse protection, audit logs, privacy controls, and retention/deletion procedures.
+6. Select and authorize map/geocoding and notification services. Request GPS only with explicit permission and provide manual address/ZIP alternatives.
+7. Authorize Stripe Connect and have the precise customer charge, provider payment, refund, dispute, and payout flow reviewed before test transactions.
+8. Test the complete flow in a non-production environment, including unauthorized access, account recovery, location consent/revocation, duplicate requests, refunds, and provider decline behavior.
+9. Verify insurance, local business requirements, service area, and customer-facing terms.
+10. Obtain owner approval before enabling production bookings, charges, provider payouts, or location tracking.
+
+## Development guardrails
+
+- Keep the existing marketing website and unrelated Cloudflare projects intact.
+- Do not publish paid plans, purchase domains, change DNS, or change live payment settings without explicit owner approval.
+- AI may help process customer-submitted requests and suggest matches. It must not scrape private individuals, infer dog ownership, send unsolicited outreach, or make consequential provider/legal decisions automatically.
+- Providers must opt in to availability and may freely accept or reject referrals under the selected referral-agency design.
+- Location collection must be purpose-limited, consent-based, and off by default outside an active job.
