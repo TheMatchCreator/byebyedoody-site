@@ -102,7 +102,10 @@ export async function onRequest({ request, env }) {
       env.DB.prepare("INSERT INTO service_requests (id, customer_id, service_zip, service_address_ciphertext, service_type, dog_count, yard_size, scope_notes_ciphertext, matching_consent_at, matching_consent_version, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'zip_matching_v1', 'submitted')")
         .bind(id, user.id, zip, addressCiphertext, serviceType, dogs, yardSize, notesCiphertext),
       env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'customer_request_submitted', 'service_request', ?)")
-        .bind(crypto.randomUUID(), user.id, id)
+        .bind(crypto.randomUUID(), user.id, id),
+      env.DB.prepare(`INSERT INTO notification_events (id, user_id, channel, template_key, delivery_status)
+        SELECT lower(hex(randomblob(16))), id, 'in_app', 'admin_new_customer_request', 'queued'
+        FROM app_users WHERE role = 'admin' AND account_status = 'active'`)
     ]);
     return json({ ok: true, request: { id, zip, serviceType, dogCount: dogs, yardSize, status: "submitted" } }, 201);
   } catch (error) {
