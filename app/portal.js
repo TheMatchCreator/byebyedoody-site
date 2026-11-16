@@ -102,10 +102,23 @@
     event.preventDefault();
     const data = formObject(form);
     try {
-      if (form.dataset.form === "customer-request") {\n        data.dogCount = Number(data.dogCount); data.consent = form.elements.consent.checked; data.matchingConsent = form.elements.matchingConsent.checked;\n        const result = await api("/api/marketplace/requests", { method:"POST", body:JSON.stringify(data) });\n        notice("Service request submitted: "+result.request.id+". This is not a confirmed booking.");\n      } else if (form.dataset.form === "quote") {\n        const providerRateCents = Math.round(Number(data.rate) * 100);\n        const result = await api("/api/marketplace/quotes", { method:"POST", body:JSON.stringify({requestId:data.requestId,providerRateCents,terms:data.terms}) });\n        notice("Independent quote submitted: "+result.quote.id);\n      } else if (form.dataset.form === "area") {
+      if (form.dataset.form === "customer-request") {
+        data.dogCount = Number(data.dogCount); data.consent = form.elements.consent.checked; data.matchingConsent = form.elements.matchingConsent.checked;
+        const result = await api("/api/marketplace/requests", { method:"POST", body:JSON.stringify(data) });
+        notice("Service request submitted: "+result.request.id+". This is not a confirmed booking.");
+      } else if (form.dataset.form === "quote") {
+        const providerRateCents = Math.round(Number(data.rate) * 100);
+        const result = await api("/api/marketplace/quotes", { method:"POST", body:JSON.stringify({requestId:data.requestId,providerRateCents,terms:data.terms}) });
+        notice("Independent quote submitted: "+result.quote.id);
+      } else if (form.dataset.form === "area") {
         const result = await api("/api/marketplace/service-areas", { method:"POST", body:JSON.stringify(data) });
         notice("ZIP code "+result.zip+" added to your service area.");
-      } else if (form.dataset.form === "provider-application") {\n        const zipCodes = data.zipCodes.split(/[ ,;]+/).filter(Boolean);\n        const attestations = {businessRegistration:form.elements.businessRegistration.checked,ownTools:form.elements.ownTools.checked,independentClients:form.elements.independentClients.checked,setsRates:form.elements.setsRates.checked,setsHours:form.elements.setsHours.checked,freeChoice:form.elements.freeChoice.checked};\n        const result = await api("/api/marketplace/provider-application", { method:"POST", body:JSON.stringify({businessName:data.businessName,zipCodes,attestations}) });\n        notice("Provider application submitted: "+result.status+". It is awaiting review.");\n      } else if (form.dataset.form === "availability") {
+      } else if (form.dataset.form === "provider-application") {
+        const zipCodes = data.zipCodes.split(/[ ,;]+/).filter(Boolean);
+        const attestations = {businessRegistration:form.elements.businessRegistration.checked,ownTools:form.elements.ownTools.checked,independentClients:form.elements.independentClients.checked,setsRates:form.elements.setsRates.checked,setsHours:form.elements.setsHours.checked,freeChoice:form.elements.freeChoice.checked};
+        const result = await api("/api/marketplace/provider-application", { method:"POST", body:JSON.stringify({businessName:data.businessName,zipCodes,attestations}) });
+        notice("Provider application submitted: "+result.status+". It is awaiting review.");
+      } else if (form.dataset.form === "availability") {
         const toIso = (value) => new Date(value + ":00Z").toISOString();
         const result = await api("/api/marketplace/availability", { method:"POST", body:JSON.stringify({startsAt:toIso(data.startsAt),endsAt:toIso(data.endsAt),status:"available"}) });
         notice("Availability window saved. You remain free to accept or decline any referral.");
