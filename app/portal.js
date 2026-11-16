@@ -89,6 +89,7 @@
           <article class="portal-panel"><h2>Provider applications</h2><p>Review submitted applications. Approval requires verified email and all independence attestations.</p><button type="button" class="button button-dark" data-action="admin-providers">Load applications</button><div data-providers class="portal-results"></div></article>
           <article class="portal-panel"><h2>Referral suggestions</h2><p>ZIP and provider-opted availability suggestions only. Human review is required; no automatic dispatch.</p><button type="button" class="button button-outline-dark" data-action="admin-matches">Calculate suggestions</button><div data-matches class="portal-results"></div></article>
           <article class="portal-panel portal-wide"><h2>Referral oversight</h2><p>Review pending invitations and recorded referrals. Customer names, contact details, street addresses and private notes are intentionally excluded.</p><button type="button" class="button button-dark" data-action="admin-referrals">Load referral activity</button><div data-admin-referrals class="portal-results"></div></article>
+          <article class="portal-panel portal-wide"><h2>Audit history</h2><p>Review recent administrative and marketplace changes. The log excludes customer contact details, street addresses, and private notes.</p><button type="button" class="button button-outline-dark" data-action="admin-audit">Load audit history</button><div data-admin-audit class="portal-results"></div></article>
         </div>`
     };
     title.textContent = ({home:"Overview",requests:"Service requests",quotes:"Quotes",provider:"Provider tools",privacy:"Privacy & support",admin:"Administration"})[view] || "Overview";
@@ -198,6 +199,11 @@
         const invitations=(data.invitations||[]).map((i)=>"<div class='portal-result-row'><b>Invitation "+escapeHtml(i.id)+"</b><span>ZIP: "+escapeHtml(i.service_zip)+"</span><span>Provider: "+escapeHtml(i.independent_business_name)+"</span><span>Rate: "+escapeHtml(money(i.provider_service_rate_cents))+"</span><span>Status: "+escapeHtml(i.status)+"</span><span>Created: "+escapeHtml(i.created_at)+"</span></div>").join("");
         const referrals=(data.referrals||[]).map((f)=>"<div class='portal-result-row'><b>Referral "+escapeHtml(f.id)+"</b><span>ZIP: "+escapeHtml(f.service_zip)+"</span><span>Provider: "+escapeHtml(f.independent_business_name)+"</span><span>Provider rate: "+escapeHtml(money(f.provider_rate_cents))+"</span><span>Customer total: "+escapeHtml(money(f.customer_total_cents))+"</span><span>Platform fee: "+escapeHtml(money(f.platform_fee_cents))+"</span><span>Status: "+escapeHtml(f.status)+"</span></div>").join("");
         html="<h3>Invitations</h3>"+(invitations||"<p>No invitations recorded.</p>")+"<h3>Recorded referrals</h3>"+(referrals||"<p>No referrals recorded.</p>")+"<p class='portal-muted'>"+escapeHtml(data.scope)+"</p>";
+      }
+      if (action === "admin-audit") {
+        data=await api("/api/marketplace/admin-audit?limit=75");
+        html=(data.events||[]).map((event)=>"<div class='portal-result-row'><b>"+escapeHtml(event.action)+"</b><span>Object: "+escapeHtml(event.object_type)+" · "+escapeHtml(event.object_id)+"</span><span>Actor: "+escapeHtml(event.actor_id||"System")+"</span><span>When: "+escapeHtml(event.created_at)+"</span></div>").join("")||"<p>No audit events recorded.</p>";
+        html+="<p class='portal-muted'>"+escapeHtml(data.scope)+"</p>";
       }
       if (target) target.innerHTML=html;
       panel?.querySelectorAll("[data-quote-request]").forEach((control)=>control.addEventListener("click",()=>{
