@@ -16,6 +16,8 @@ Responsive website and staged marketplace project for a Sacramento-area dog-wast
 - `marketplace/customer-request.html` — customer service inquiry form (not a booking)
 - `app/index.html` — staged customer/provider/admin portal entry page; sign-in intentionally disabled
 - `functions/api/marketplace/status.js` — public readiness endpoint; reports configuration presence only
+- `functions/_shared/marketplace-auth.js` — RS256 OIDC/JWKS token verification helper for marketplace APIs
+- `functions/api/marketplace/requests.js` — authenticated customer request create/list API; private address and notes are AES-GCM encrypted before storage
 - `404.html` — Custom not-found page
 
 ## Existing hosting context
@@ -47,16 +49,16 @@ The marketplace is not yet a live booking or dispatch system.
 - `GET /api/marketplace/status` — safe readiness summary. It never returns secret values or personal data; a successful HTTP response does not mean the marketplace is launch-ready.
 - The owner selected an independent service-provider referral-agency direction, subject to California employment counsel confirming the actual business model and practices.
 - The current fee design target is a separately disclosed customer-paid platform fee; it must not be deducted from the provider's independently agreed rate. The exact formula is not approved for production.
-- No secure customer/provider accounts, password recovery, provider verification, live GPS matching, job dispatch, Stripe Connect marketplace payments, or payouts are active.
+- No customer/provider sign-in is configured yet. The request API is code-only until an OIDC issuer, audience, JWKS URL, active account rows, D1 binding, and encryption key are configured and tested. No password recovery, provider verification, live GPS matching, job dispatch, Stripe Connect marketplace payments, or payouts are active.
 - Do not collect Social Security numbers, government ID images, bank credentials, or card data in website forms or email.
 
 ## Required before marketplace launch
 
 1. Confirm the referral-agency model and all provider/customer agreements with California employment counsel.
 2. Obtain written City of Sacramento guidance on pet-waste collection, bagging, hauling, and disposal for each property/service category. Do not enable off-site hauling or commercial/multifamily jobs until lawful arrangements are confirmed.
-3. Select and authorize a managed authentication service; configure `AUTH_ISSUER` and `AUTH_AUDIENCE` only after implementing and testing token verification, verified email, account recovery, session security, and administrator MFA.
-4. Create a non-production D1 database, review and apply migrations `0001` and `0002` in order, then bind it as `DB` to the correct Pages/Worker environment. Do not point an untested migration at production data.
-5. Implement server-side authorization, validation, abuse protection, audit logs, privacy controls, and retention/deletion procedures.
+3. Select and authorize a managed OIDC authentication service; configure `AUTH_ISSUER`, `AUTH_AUDIENCE`, and `AUTH_JWKS_URL`. The signed role claim `https://byebyedoody.com/role` must be assigned only by trusted server-side rules, never by user-editable profile metadata. Add an active matching `app_users` row only after verified signup and required review. Configure secure account recovery, session revocation, and administrator MFA.
+4. Create a non-production D1 database, review and apply migrations `0001` and `0002` in order, then bind it as `DB` to the correct Pages/Worker environment. Do not point an untested migration at production data. Set `DATA_ENCRYPTION_KEY` as a 32-byte base64-encoded secret generated securely outside this repository; never commit or paste it into chat.
+5. Continue server-side authorization, validation, abuse protection, audit logs, privacy controls, and retention/deletion procedures. `POST /api/marketplace/requests` currently accepts authenticated customer requests and encrypts the private address and notes; `GET` returns only the caller's own requests unless an active admin account is used. Test it in a non-production environment before use.
 6. Select and authorize map/geocoding and notification services. Request GPS only with explicit permission and provide manual address/ZIP alternatives.
 7. Authorize Stripe Connect and have the precise customer charge, provider payment, refund, dispute, and payout flow reviewed before test transactions.
 8. Test the complete flow in a non-production environment, including unauthorized access, account recovery, location consent/revocation, duplicate requests, refunds, and provider decline behavior.
