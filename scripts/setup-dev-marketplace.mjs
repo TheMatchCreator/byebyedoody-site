@@ -48,7 +48,7 @@ let accountId = process.env.CLOUDFLARE_ACCOUNT_ID || "";
 if (!accountId) {
   let accounts = await cf("/accounts?per_page=50").catch(() => []);
   // A key without "Account Settings: Read" cannot list accounts; try the owner's known account ID.
-  for (const id of ["a79478f1f1fec332f100a840c705c2c4"]) if (!accounts.some((a) => a.id === id)) accounts.push({ id, name: "known account" });
+  for (const id of ["7b5e41c1cbfb0ed1280523fcebd5936c", "a79478f1f1fec332f100a840c705c2c4"]) if (!accounts.some((a) => a.id === id)) accounts.push({ id, name: "known account" });
   console.log(`This key can reach ${accounts.length} Cloudflare account(s).`);
   for (const a of accounts) {
     let names = [];
