@@ -36,7 +36,7 @@
   const data=await response.json();
   message.textContent=data.message;
   list.replaceChildren();
-  const labels={databaseBinding:'Database binding',authenticationProvider:'Authentication provider',privateDocumentStorage:'Private document storage',notificationProvider:'Inquiry email delivery',marketplacePayments:'Marketplace payments'};
+  const labels={databaseBinding:'Database binding',authenticationProvider:'Authentication provider',privateDataEncryption:'Private-data encryption',privateDocumentStorage:'Private document storage',notificationProvider:'Inquiry email delivery',marketplacePayments:'Marketplace payments'};
   for(const [key,label] of Object.entries(labels)){
    const item=document.createElement('li');
    item.textContent=label+': '+(data.checks?.[key]?'configured':'not connected');
