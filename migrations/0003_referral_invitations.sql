@@ -2,12 +2,9 @@
 -- Apply after migrations 0001 and 0002 in a non-production database.
 -- This records a customer-selected quote and a provider's response only.
 -- It does not create a booking, charge, payout, work assignment, or dispatch.
+-- Matching-consent columns and index are created by 0003_matching_consent.sql.
 
 PRAGMA foreign_keys = ON;
-
--- Explicit opt-in fields used by customer consent and provider matching APIs.
-ALTER TABLE service_requests ADD COLUMN matching_consent_at TEXT;
-ALTER TABLE service_requests ADD COLUMN matching_consent_version TEXT;
 
 CREATE TABLE IF NOT EXISTS referral_invitations (
   id TEXT PRIMARY KEY,
