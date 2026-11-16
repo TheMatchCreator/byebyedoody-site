@@ -54,14 +54,17 @@ export async function onRequest({ request, env }) {
     }
     const nextStatus = decision === "approve" ? "approved" : decision === "reject" ? "rejected" : decision === "suspend" ? "suspended" : "incomplete";
     const accountStatus = decision === "approve" ? "active" : decision === "suspend" ? "suspended" : "pending";
-    await env.DB.batch([
-      env.DB.prepare("UPDATE provider_profiles SET onboarding_status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE user_id = ?")
-        .bind(nextStatus, adminId, providerId),
-      env.DB.prepare("UPDATE app_users SET account_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+    const writes = await env.DB.batch([
+      env.DB.prepare(`UPDATE provider_profiles SET onboarding_status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP
+        WHERE user_id = ? AND onboarding_status IN ('submitted','under_review','rejected','incomplete')
+          AND EXISTS (SELECT 1 FROM app_users WHERE id = ? AND role = 'provider' AND account_status NOT IN ('suspended','closed'))`)
+        .bind(nextStatus, adminId, providerId, providerId),
+      env.DB.prepare("UPDATE app_users SET account_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND changes() = 1")
         .bind(accountStatus, providerId),
-      env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, ?, 'provider_profile', ?)")
+      env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) SELECT ?, ?, ?, 'provider_profile', ? WHERE changes() = 1")
         .bind(crypto.randomUUID(), adminId, "provider_" + decision, providerId)
     ]);
+    if (!writes[0]?.meta?.changes) return json({ error: "This application changed during review. Refresh the provider list." }, 409);
     return json({ ok: true, providerId, status: nextStatus, accountStatus });
   } catch (error) {
     console.error("Admin provider review failed:", error?.message || "database_error");
