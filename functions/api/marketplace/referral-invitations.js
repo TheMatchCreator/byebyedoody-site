@@ -87,7 +87,7 @@ export async function onRequest({ request, env }) {
     const next = action === "provider_accept" ? "accepted_by_provider"
       : action === "provider_decline" ? "declined_by_provider" : "cancelled_by_customer";
     const ownerColumn = user.role === "customer" ? "customer_id" : "provider_id";
-    const invitation = await env.DB.prepare("SELECT id, customer_id, provider_id FROM referral_invitations WHERE id = ? AND " + ownerColumn + " = ? AND status = 'awaiting_provider'")
+    const invitation = await env.DB.prepare("SELECT id, customer_id, provider_id, quote_id FROM referral_invitations WHERE id = ? AND " + ownerColumn + " = ? AND status = 'awaiting_provider'")
       .bind(id, user.id).first();
     if (!invitation) return json({ error: "A pending invitation belonging to your account was not found." }, 404);
     const recipientId = user.role === "customer" ? invitation.provider_id : invitation.customer_id;
@@ -100,7 +100,8 @@ export async function onRequest({ request, env }) {
       env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, ?, 'referral_invitation', ?)")
         .bind(crypto.randomUUID(), user.id, "referral_" + next, id),
       env.DB.prepare("INSERT INTO notification_events (id, user_id, channel, template_key, delivery_status) VALUES (?, ?, 'in_app', ?, 'queued')")
-        .bind(crypto.randomUUID(), recipientId, "referral_" + next)
+        .bind(crypto.randomUUID(), recipientId, "referral_" + next),
+      ...(action === "provider_decline" ? [env.DB.prepare("UPDATE provider_quotes SET status = 'declined' WHERE id = ? AND status = 'offered'").bind(invitation.quote_id)] : [])
     ]);
     return json({ ok: true, invitationId: id, status: next,
       message: "The invitation response was recorded. No booking, dispatch, charge, or payout was created." });
