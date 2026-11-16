@@ -18,6 +18,7 @@ Responsive website and staged marketplace project for a Sacramento-area dog-wast
 - `functions/api/marketplace/status.js` — public readiness endpoint; reports configuration presence only
 - `functions/_shared/marketplace-auth.js` — RS256 OIDC/JWKS token verification helper for marketplace APIs
 - `functions/api/marketplace/requests.js` — authenticated customer request create/list API; private address and notes are AES-GCM encrypted before storage
+- `functions/api/marketplace/availability.js` — approved providers can view and manage their own availability windows; this does not dispatch jobs or require them to accept referrals
 - `404.html` — Custom not-found page
 
 ## Existing hosting context
@@ -58,7 +59,7 @@ The marketplace is not yet a live booking or dispatch system.
 2. Obtain written City of Sacramento guidance on pet-waste collection, bagging, hauling, and disposal for each property/service category. Do not enable off-site hauling or commercial/multifamily jobs until lawful arrangements are confirmed.
 3. Select and authorize a managed OIDC authentication service; configure `AUTH_ISSUER`, `AUTH_AUDIENCE`, and `AUTH_JWKS_URL`. The signed role claim `https://byebyedoody.com/role` must be assigned only by trusted server-side rules, never by user-editable profile metadata. Add an active matching `app_users` row only after verified signup and required review. Configure secure account recovery, session revocation, and administrator MFA.
 4. Create a non-production D1 database, review and apply migrations `0001` and `0002` in order, then bind it as `DB` to the correct Pages/Worker environment. Do not point an untested migration at production data. Set `DATA_ENCRYPTION_KEY` as a 32-byte base64-encoded secret generated securely outside this repository; never commit or paste it into chat.
-5. Continue server-side authorization, validation, abuse protection, audit logs, privacy controls, and retention/deletion procedures. `POST /api/marketplace/requests` currently accepts authenticated customer requests and encrypts the private address and notes; `GET` returns only the caller's own requests unless an active admin account is used. Test it in a non-production environment before use.
+5. Continue server-side authorization, validation, abuse protection, audit logs, privacy controls, and retention/deletion procedures. `POST /api/marketplace/requests` currently accepts authenticated customer requests and encrypts the private address and notes; `GET` returns only the caller's own requests unless an active admin account is used. `GET/POST /api/marketplace/availability` lets approved providers manage their own future availability windows. Test it in a non-production environment before use.
 6. Select and authorize map/geocoding and notification services. Request GPS only with explicit permission and provide manual address/ZIP alternatives.
 7. Authorize Stripe Connect and have the precise customer charge, provider payment, refund, dispute, and payout flow reviewed before test transactions.
 8. Test the complete flow in a non-production environment, including unauthorized access, account recovery, location consent/revocation, duplicate requests, refunds, and provider decline behavior.
