@@ -125,3 +125,9 @@ CREATE TABLE IF NOT EXISTS privacy_requests (
 
 CREATE INDEX IF NOT EXISTS idx_privacy_requests_status
   ON privacy_requests(status, received_at);
+
+-- Prevent duplicate active quotes from the same provider for the same request,
+-- including concurrent submissions.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_quotes_one_active_per_provider_request
+  ON provider_quotes(request_id, provider_id)
+  WHERE status IN ('offered','accepted_by_customer');
