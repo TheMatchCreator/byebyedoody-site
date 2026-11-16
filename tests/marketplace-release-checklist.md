@@ -10,6 +10,9 @@ This checklist is for a disposable, non-production Cloudflare D1 database and a 
 - [ ] Bind the test database as `DB` only in the test Pages environment.
 - [ ] Generate a fresh 32-byte encryption key and set it as `DATA_ENCRYPTION_KEY` in the test environment. Do not commit it or send it through chat.
 - [ ] Confirm the public readiness endpoint reports configuration presence only and does not expose secret values.
+- [ ] Verify rate-limit migration 0006 is applied and each protected write route returns HTTP 429 with a Retry-After header after its documented per-account threshold.
+- [ ] Verify rate limits reset at the next fixed UTC window and do not store IP addresses, email addresses, or request bodies.
+- [ ] Verify D1 rate-limit failures fail closed with HTTP 503 rather than silently disabling abuse protection.
 
 ## Identity and authorization
 
