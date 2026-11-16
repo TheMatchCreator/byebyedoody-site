@@ -124,7 +124,10 @@
     try {
       let data, html = "";
       if (action === "load-requests") { data=await api("/api/marketplace/requests"); html=renderRows(data.requests||[],[["service_zip","ZIP"],["service_type","Frequency"],["dog_count","Dogs"],["yard_size","Yard"],["status","Status"],["created_at","Submitted"]]); }
-      if (action === "load-quotes") { data=await api("/api/marketplace/quotes"); html=renderRows(data.quotes||[],[["provider_service_rate_cents","Provider rate (cents)"],["status","Status"],["created_at","Submitted"]]); }
+      if (action === "load-quotes") {
+        data=await api("/api/marketplace/quotes");
+        html=(data.quotes||[]).map((q)=>"<div class='portal-result-row'><b>Quote "+escapeHtml(q.id)+"</b><span>Request: "+escapeHtml(q.request_id)+"</span><span>Provider rate: "+escapeHtml(money(q.provider_service_rate_cents))+"</span><span>Status: "+escapeHtml(q.status)+"</span>"+(q.status==="offered" ? "<button type='button' data-quote-action='"+(state.role==="provider"?"withdraw":"decline")+"' data-id='"+escapeHtml(q.id)+"'>"+(state.role==="provider"?"Withdraw quote":"Decline quote")+"</button>" : "")+"</div>").join("")||"<p>No quotes found.</p>";
+      }
       if (action === "load-areas") { data=await api("/api/marketplace/service-areas"); html=renderRows(data.serviceAreas||[],[["zip_code","ZIP"],["active","Active"]]); }
       if (action === "load-availability") { data=await api("/api/marketplace/availability"); html=renderRows(data.availability||[],[["starts_at","Starts"],["ends_at","Ends"],["status","Status"]]); }
       if (action === "load-privacy") { data=await api("/api/marketplace/privacy-requests"); html=renderRows(data.privacyRequests||[],[["request_type","Type"],["status","Status"],["received_at","Received"]]); }
@@ -132,6 +135,10 @@
       if (action === "admin-providers") { data=await api("/api/marketplace/admin-providers"); html=(data.providers||[]).map((p)=>"<div class='portal-result-row'><b>"+escapeHtml(p.independent_business_name)+"</b><span>Status: "+escapeHtml(p.onboarding_status)+"</span><span>Provider ID: "+escapeHtml(p.user_id)+"</span><div class='portal-actions'><button type='button' data-review='approve' data-id='"+escapeHtml(p.user_id)+"'>Approve</button><button type='button' data-review='reject' data-id='"+escapeHtml(p.user_id)+"'>Reject</button><button type='button' data-review='request_changes' data-id='"+escapeHtml(p.user_id)+"'>Request changes</button></div></div>").join("")||"<p>No applications.</p>"; }
       if (action === "admin-matches") { data=await api("/api/marketplace/admin-matches"); html=(data.matches||[]).map((m)=>"<div class='portal-result-row'><b>Request "+escapeHtml(m.request.id)+" · ZIP "+escapeHtml(m.request.zip)+"</b>"+renderRows(m.candidates,[["businessName","Provider"],["nextAvailableStart","Available from"]])+"</div>").join("")||"<p>No suggestions.</p>"; }
       if (target) target.innerHTML=html;
+      panel?.querySelectorAll("[data-quote-action]").forEach((control)=>control.addEventListener("click",async()=>{
+        try { await api("/api/marketplace/quote-actions",{method:"POST",body:JSON.stringify({quoteId:control.dataset.id,action:control.dataset.quoteAction})}); notice("Quote updated. No booking or payment was created."); await runAction("load-quotes",button); }
+        catch(error){notice(error.message,true);}
+      }));
       panel?.querySelectorAll("[data-review]").forEach((control)=>control.addEventListener("click",async()=>{
         try { const result=await api("/api/marketplace/admin-providers",{method:"POST",body:JSON.stringify({providerId:control.dataset.id,decision:control.dataset.review})}); notice("Provider application updated: "+result.status); await runAction("admin-providers",button); }
         catch(error){notice(error.message,true);}
