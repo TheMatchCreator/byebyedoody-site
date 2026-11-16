@@ -104,24 +104,24 @@ export async function onRequest({ request, env }) {
       .bind(id, user.id).first();
     if (!invitation) return json({ error: "A pending invitation belonging to your account was not found." }, 404);
     const recipientId = user.role === "customer" ? invitation.provider_id : invitation.customer_id;
-    const result = await env.DB.prepare(`UPDATE referral_invitations
-      SET status = ?, responded_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND ${ownerColumn} = ? AND status = 'awaiting_provider'
-        AND (? != 'accepted_by_provider' OR EXISTS (
-          SELECT 1 FROM service_requests r
-          WHERE r.id = referral_invitations.request_id
-            AND r.status IN ('submitted','quoted','open_for_referral')
-            AND r.matching_consent_at IS NOT NULL
-        ))`)
-      .bind(next, id, user.id, next).run();
-    if (!result.meta?.changes) return json({ error: "The invitation has already been updated." }, 409);
-    await env.DB.batch([
-      env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, ?, 'referral_invitation', ?)")
+    const writes = await env.DB.batch([
+      env.DB.prepare(`UPDATE referral_invitations
+        SET status = ?, responded_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND ${ownerColumn} = ? AND status = 'awaiting_provider'
+          AND (? != 'accepted_by_provider' OR EXISTS (
+            SELECT 1 FROM service_requests r
+            WHERE r.id = referral_invitations.request_id
+              AND r.status IN ('submitted','quoted','open_for_referral')
+              AND r.matching_consent_at IS NOT NULL
+          ))`)
+        .bind(next, id, user.id, next),
+      env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) SELECT ?, ?, ?, 'referral_invitation', ? WHERE changes() = 1")
         .bind(crypto.randomUUID(), user.id, "referral_" + next, id),
-      env.DB.prepare("INSERT INTO notification_events (id, user_id, channel, template_key, delivery_status) VALUES (?, ?, 'in_app', ?, 'queued')")
+      env.DB.prepare("INSERT INTO notification_events (id, user_id, channel, template_key, delivery_status) SELECT ?, ?, 'in_app', ?, 'queued' WHERE changes() > 0")
         .bind(crypto.randomUUID(), recipientId, "referral_" + next),
-      ...(action === "provider_decline" ? [env.DB.prepare("UPDATE provider_quotes SET status = 'declined' WHERE id = ? AND status = 'offered'").bind(invitation.quote_id)] : [])
+      ...(action === "provider_decline" ? [env.DB.prepare("UPDATE provider_quotes SET status = 'declined' WHERE id = ? AND status = 'offered' AND EXISTS (SELECT 1 FROM referral_invitations WHERE id = ? AND status = 'declined_by_provider')").bind(invitation.quote_id, id)] : [])
     ]);
+    if (!writes[0]?.meta?.changes) return json({ error: "The invitation has already been updated or the request has closed." }, 409);
     return json({ ok: true, invitationId: id, status: next,
       message: "The invitation response was recorded. No booking, dispatch, charge, or payout was created." });
   } catch (error) {
