@@ -16,7 +16,7 @@ export async function onRequest({ request, env }) {
   const horizon = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
   try {
     const requests = await env.DB.prepare(
-      "SELECT id, service_zip, service_type, dog_count, yard_size, requested_window_start, requested_window_end, created_at FROM service_requests WHERE status IN ('submitted','open_for_referral') ORDER BY created_at ASC LIMIT 100"
+      "SELECT id, service_zip, service_type, dog_count, yard_size, requested_window_start, requested_window_end, created_at FROM service_requests WHERE status IN ('submitted','open_for_referral','quoted') ORDER BY created_at ASC LIMIT 100"
     ).all();
     const matches = [];
     for (const job of requests.results || []) {
