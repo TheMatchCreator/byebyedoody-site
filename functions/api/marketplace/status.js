@@ -12,7 +12,8 @@ const response = (body, status = 200) => new Response(JSON.stringify(body), {
 export async function onRequestGet({ env }) {
   const checks = {
     databaseBinding: Boolean(env.DB),
-    authenticationProvider: Boolean(env.AUTH_ISSUER && env.AUTH_AUDIENCE),
+    authenticationProvider: Boolean(env.AUTH_ISSUER && env.AUTH_AUDIENCE && env.AUTH_JWKS_URL),
+    privateDataEncryption: Boolean(env.DATA_ENCRYPTION_KEY),
     privateDocumentStorage: Boolean(env.PRIVATE_DOCUMENTS),
     notificationProvider: Boolean(env.RESEND_API_KEY && env.LEADS_TO_EMAIL && env.FROM_EMAIL),
     marketplacePayments: false
