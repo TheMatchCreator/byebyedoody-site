@@ -120,7 +120,7 @@
     const panel = button.closest(".portal-panel");
     const target = panel?.querySelector("[data-results],[data-areas],[data-availability],[data-privacy],[data-providers],[data-matches]");
     if (target) target.textContent = "Loading…";
-    const renderRows = (rows, fields) => rows.length ? rows.map((row) => "<div class='portal-result-row'>"+fields.map(([key,label])=>"<span><b>"+escapeHtml(label)+":</b> "+escapeHtml(row[key] ?? "—")+"</span>").join("")+"</div>").join("") : "<p>No records found.</p>";
+    const renderRows = (rows, fields) => rows.length ? rows.map((row) => "<div class='portal-result-row'>"+fields.map(([key,label])=>"<span><b>"+escapeHtml(label)+":</b> "+escapeHtml(row[key] ?? "—")+"</span>").join("")+(action==="load-requests" && state.role==="provider" ? "<button type='button' data-quote-request='"+escapeHtml(row.id)+"'>Prepare quote</button>" : "")+"</div>").join("") : "<p>No records found.</p>";
     try {
       let data, html = "";
       if (action === "load-requests") { data=await api("/api/marketplace/requests"); html=renderRows(data.requests||[],[["service_zip","ZIP"],["service_type","Frequency"],["dog_count","Dogs"],["yard_size","Yard"],["status","Status"],["created_at","Submitted"]]); }
@@ -135,6 +135,11 @@
       if (action === "admin-providers") { data=await api("/api/marketplace/admin-providers"); html=(data.providers||[]).map((p)=>"<div class='portal-result-row'><b>"+escapeHtml(p.independent_business_name)+"</b><span>Status: "+escapeHtml(p.onboarding_status)+"</span><span>Provider ID: "+escapeHtml(p.user_id)+"</span><div class='portal-actions'><button type='button' data-review='approve' data-id='"+escapeHtml(p.user_id)+"'>Approve</button><button type='button' data-review='reject' data-id='"+escapeHtml(p.user_id)+"'>Reject</button><button type='button' data-review='request_changes' data-id='"+escapeHtml(p.user_id)+"'>Request changes</button></div></div>").join("")||"<p>No applications.</p>"; }
       if (action === "admin-matches") { data=await api("/api/marketplace/admin-matches"); html=(data.matches||[]).map((m)=>"<div class='portal-result-row'><b>Request "+escapeHtml(m.request.id)+" · ZIP "+escapeHtml(m.request.zip)+"</b>"+renderRows(m.candidates,[["businessName","Provider"],["nextAvailableStart","Available from"]])+"</div>").join("")||"<p>No suggestions.</p>"; }
       if (target) target.innerHTML=html;
+      panel?.querySelectorAll("[data-quote-request]").forEach((control)=>control.addEventListener("click",()=>{
+        render("quotes");
+        const field=root.querySelector('input[name="requestId"]');
+        if(field) field.value=control.dataset.quoteRequest;
+      }));
       panel?.querySelectorAll("[data-quote-action]").forEach((control)=>control.addEventListener("click",async()=>{
         try { await api("/api/marketplace/quote-actions",{method:"POST",body:JSON.stringify({quoteId:control.dataset.id,action:control.dataset.quoteAction})}); notice("Quote updated. No booking or payment was created."); await runAction("load-quotes",button); }
         catch(error){notice(error.message,true);}
