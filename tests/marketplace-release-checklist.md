@@ -35,6 +35,9 @@ This checklist is for a disposable, non-production Cloudflare D1 database and a 
 ## Provider independence and referral workflow
 
 - [ ] Submit provider applications with missing attestations; confirm they cannot be approved as complete.
+- [ ] Verify a first-time verified provider can create only a pending provider row from the signed provider role; customer-supplied role values must be ignored.
+- [ ] Verify provider application profile, service ZIP rows, and audit event are all committed or all rolled back.
+- [ ] Verify only an admin can approve or suspend providers, and that suspension immediately blocks quote, availability, and invitation actions.
 - [ ] Confirm only an active admin can review provider applications.
 - [ ] Confirm unapproved or suspended providers cannot submit quotes, manage live availability, or accept invitations.
 - [ ] Confirm providers can choose their own rates, hours, ZIPs, and freely decline invitations without penalty.
@@ -55,6 +58,7 @@ This checklist is for a disposable, non-production Cloudflare D1 database and a 
 - [ ] Confirm the admin referral response contains no customer names, email, phone, street address, access notes, or private notes.
 - [ ] Confirm the admin response includes only operational ZIP/service/quote/referral status fields needed for oversight.
 - [ ] Confirm privacy and issue status changes create corresponding audit events.
+- [ ] Race-test simultaneous admin decisions on one provider application; stale decisions must return a conflict and must not overwrite a newer status.
 - [ ] Confirm quote creation, availability changes, and service-area changes commit with their audit records atomically; failed writes must not leave orphaned audit events or records.
 - [ ] Confirm no endpoint lets an admin silently create a booking, dispatch a provider, or mark payment as completed.
 
