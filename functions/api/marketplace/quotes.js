@@ -1,3 +1,4 @@
+import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { requireUser } from "../../_shared/marketplace-auth.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -32,6 +33,8 @@ export async function onRequest({ request, env }) {
 
   if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
   if (user.role !== "provider") return json({ error: "Only providers can submit independent service quotes." }, 403);
+  const limited = await enforceRateLimit(env, user.id, "provider_quote_submit", 10, 3600);
+  if (limited) return limited;
   let input;
   try { input = await request.json(); } catch { return json({ error: "Please submit valid quote details." }, 400); }
   const requestId = typeof input.requestId === "string" ? input.requestId.slice(0, 80) : "";
