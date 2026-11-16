@@ -52,7 +52,8 @@ export async function onRequest({ request, env }) {
   }
 
   if (request.method === "GET") {
-    const draft = Object.values(DRAFTS).find((item) => item.roles.includes(user.role));
+    const entry = Object.entries(DRAFTS).find(([, item]) => item.roles.includes(user.role));
+    const draft = entry ? { key: entry[0], ...entry[1] } : null;
     const result = await env.DB.prepare("SELECT agreement_key, agreement_version, acknowledged_at FROM agreement_acknowledgements WHERE user_id = ? ORDER BY acknowledged_at DESC")
       .bind(user.id).all();
     return json({ draft, acknowledgements: result.results || [] });
