@@ -60,7 +60,7 @@
     const views = {
       home: () => `
         <div class="portal-grid">
-          <article class="portal-panel portal-wide"><p class="market-kicker">MARKETPLACE STATUS</p><h2>Secure account access is not connected</h2><p>The portal screens are prepared, but customer records, provider tools and administrator actions remain locked until the managed sign-in service and Cloudflare D1 database are configured.</p><div class="portal-actions"><a class="button button-dark" href="/marketplace/customer-request.html">Send a service inquiry</a><a class="button button-outline-dark" href="/work-with-us.html">Provider information</a></div></article>
+          <article class="portal-panel portal-wide"><p class="market-kicker">MARKETPLACE STATUS</p><h2>Secure account access is not connected</h2><p>The portal screens are prepared, but customer records, provider tools and administrator actions remain locked until the managed sign-in service and Cloudflare D1 database are configured.</p><h3>Configuration checks</h3><ul class="portal-readiness" data-readiness><li>Checking service configuration…</li></ul><p class="portal-muted">These checks report configuration presence only. They do not mean the marketplace is open or ready for real customers.</p><div class="portal-actions"><a class="button button-dark" href="/marketplace/customer-request.html">Send a service inquiry</a><a class="button button-outline-dark" href="/work-with-us.html">Provider information</a></div></article>
           <article class="portal-panel"><h3>Customer workspace</h3><p>View your requests and compare independent provider quotes after secure sign-in is enabled.</p><button type="button" class="button button-outline-dark" data-go="requests">View requests</button></article>
           <article class="portal-panel"><h3>Provider workspace</h3><p>Manage opt-in service ZIP codes, availability and independent quotes after approval.</p><button type="button" class="button button-outline-dark" data-go="provider">Provider tools</button></article>
           <article class="portal-panel"><h3>Privacy and support</h3><p>Submit a privacy request or report an issue associated with an active referral.</p><button type="button" class="button button-outline-dark" data-go="privacy">Open privacy tools</button></article>
@@ -96,6 +96,37 @@
     pane.querySelectorAll("[data-go]").forEach((button) => button.addEventListener("click", () => render(button.dataset.go)));
     pane.querySelectorAll("form").forEach((form) => form.addEventListener("submit", (event) => submitForm(event, form)));
     pane.querySelectorAll("[data-action]").forEach((button) => button.addEventListener("click", () => runAction(button.dataset.action, button)));
+    if (view === "home") loadReadiness();
+  }
+  async function loadReadiness() {
+    const target = root.querySelector("[data-readiness]");
+    if (!target) return;
+    const labels = {
+      databaseBinding: "Cloudflare D1 database",
+      rateLimitStorage: "Marketplace abuse protection",
+      authenticationProvider: "Managed sign-in provider",
+      privateDataEncryption: "Private request encryption",
+      privateDocumentStorage: "Private document storage",
+      notificationProvider: "Email notification configuration",
+      marketplacePayments: "Marketplace payment activation"
+    };
+    try {
+      const response = await fetch("/api/marketplace/status", { cache: "no-store", headers: { "Accept": "application/json" } });
+      const data = await response.json();
+      if (!response.ok || !data.checks) throw new Error("Configuration status is temporarily unavailable.");
+      target.innerHTML = Object.entries(labels).map(([key, label]) => {
+        const configured = data.checks[key] === true;
+        return "<li><span>" + escapeHtml(label) + "</span><strong class='" + (configured ? "is-ready" : "is-missing") + "'>" + (configured ? "Configured" : "Not configured") + "</strong></li>";
+      }).join("");
+      if (data.readyForAuthenticatedTraffic !== true) {
+        const item = document.createElement("li");
+        item.className = "portal-readiness-note";
+        item.textContent = "Marketplace access remains disabled pending deployment and security testing.";
+        target.appendChild(item);
+      }
+    } catch (error) {
+      target.textContent = error.message;
+    }
   }
   function formObject(form) { return Object.fromEntries(new FormData(form).entries()); }
   async function submitForm(event, form) {
