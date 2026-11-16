@@ -10,8 +10,18 @@ const response = (body, status = 200) => new Response(JSON.stringify(body), {
 });
 
 export async function onRequestGet({ env }) {
+  let rateLimitStorage = false;
+  if (env.DB) {
+    try {
+      await env.DB.prepare("SELECT 1 FROM api_rate_limits LIMIT 1").first();
+      rateLimitStorage = true;
+    } catch {
+      rateLimitStorage = false;
+    }
+  }
   const checks = {
     databaseBinding: Boolean(env.DB),
+    rateLimitStorage,
     authenticationProvider: Boolean(env.AUTH_ISSUER && env.AUTH_AUDIENCE && env.AUTH_JWKS_URL),
     privateDataEncryption: Boolean(env.DATA_ENCRYPTION_KEY),
     privateDocumentStorage: Boolean(env.PRIVATE_DOCUMENTS),
