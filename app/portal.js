@@ -81,6 +81,7 @@
           <article class="portal-panel"><h2>Privacy request</h2><p>Submit an access, correction, deletion or location-revocation request. Identity checks and lawful retention requirements may apply.</p><form data-form="privacy"><label>Request type<select name="requestType" required><option value="access">Access my information</option><option value="correction">Correct my information</option><option value="deletion">Delete my information</option><option value="location_revocation">Revoke location consent</option></select></label><button class="button button-dark">Submit privacy request</button></form><button class="button button-outline-dark" type="button" data-action="load-privacy">View my privacy requests</button><div data-privacy class="portal-results"></div></article>
           <article class="portal-panel"><h2>Report a service issue</h2><p>Available to customers and providers connected to a referral.</p><form data-form="issue"><label>Referral ID<input name="referralId" required maxlength="80"></label><label>Issue type<select name="issueType"><option value="service_quality">Service quality</option><option value="property_access">Property access</option><option value="animal_safety">Animal safety</option><option value="payment">Payment</option><option value="late_or_missed">Late or missed service</option><option value="other">Other</option></select></label><label>Details<textarea name="description" required minlength="10" maxlength="2000"></textarea></label><button class="button button-dark">Submit issue</button></form></article>
           <article class="portal-panel portal-wide"><h2>Draft terms and acknowledgements</h2><p>Read the role-specific draft terms. These are not final contracts and acknowledgement records receipt only.</p><button type="button" class="button button-outline-dark" data-action="load-agreements">Load my draft terms</button><div data-agreements class="portal-results"></div></article>
+          <article class="portal-panel portal-wide"><h2>In-app notifications</h2><p>Private alerts about referral invitations and responses. Email and SMS notifications are not connected.</p><button type="button" class="button button-outline-dark" data-action="load-notifications">Load notifications</button><div data-notifications class="portal-results"></div></article>
         </div>`,
       admin: () => `
         <div class="portal-grid">
@@ -119,7 +120,7 @@
   }
   async function runAction(action, button) {
     const panel = button.closest(".portal-panel");
-    const target = panel?.querySelector("[data-results],[data-invitations],[data-areas],[data-availability],[data-privacy],[data-providers],[data-matches],[data-agreements]");
+    const target = panel?.querySelector("[data-results],[data-invitations],[data-areas],[data-availability],[data-privacy],[data-providers],[data-matches],[data-agreements],[data-notifications]");
     if (target) target.textContent = "Loading…";
     const renderRows = (rows, fields) => rows.length ? rows.map((row) => "<div class='portal-result-row'>"+fields.map(([key,label])=>"<span><b>"+escapeHtml(label)+":</b> "+escapeHtml(row[key] ?? "—")+"</span>").join("")+(action==="load-requests" && state.role==="provider" ? "<button type='button' data-quote-request='"+escapeHtml(row.id)+"'>Prepare quote</button>" : "")+"</div>").join("") : "<p>No records found.</p>";
     try {
@@ -133,6 +134,11 @@
       if (action === "load-areas") { data=await api("/api/marketplace/service-areas"); html=renderRows(data.serviceAreas||[],[["zip_code","ZIP"],["active","Active"]]); }
       if (action === "load-availability") { data=await api("/api/marketplace/availability"); html=renderRows(data.availability||[],[["starts_at","Starts"],["ends_at","Ends"],["status","Status"]]); }
       if (action === "load-privacy") { data=await api("/api/marketplace/privacy-requests"); html=renderRows(data.privacyRequests||[],[["request_type","Type"],["status","Status"],["received_at","Received"]]); }
+      if (action === "load-notifications") {
+        data=await api("/api/marketplace/notifications");
+        const labels={provider_referral_invitation:"A customer invited you to respond to a quote.",referral_accepted_by_provider:"A provider accepted your referral invitation.",referral_declined_by_provider:"A provider declined your referral invitation.",referral_cancelled_by_customer:"A customer cancelled a pending invitation."};
+        html=(data.notifications||[]).map((n)=>"<div class='portal-result-row'><b>"+escapeHtml(labels[n.template_key]||"Marketplace update")+"</b><span>"+escapeHtml(n.created_at)+"</span><span>"+(n.read_at?"Read":"Unread")+"</span>"+(!n.read_at?"<button type='button' data-notification-read='"+escapeHtml(n.id)+"'>Mark read</button>":"")+"</div>").join("")||"<p>No notifications yet.</p>";
+      }
       if (action === "load-agreements") {
         data=await api("/api/marketplace/agreements");
         const draft=data.draft;
@@ -148,6 +154,7 @@
         const field=root.querySelector('input[name="requestId"]');
         if(field) field.value=control.dataset.quoteRequest;
       }));
+      target?.querySelectorAll("[data-notification-read]").forEach((control)=>control.addEventListener("click",async()=>{try{await api("/api/marketplace/notifications",{method:"POST",body:JSON.stringify({action:"mark_read",id:control.dataset.notificationRead})});await runAction("load-notifications",button);}catch(error){notice(error.message,true);}}));
       target?.querySelectorAll("[data-draft-ack]").forEach((form)=>form.addEventListener("submit",async(event)=>{event.preventDefault();try{await api("/api/marketplace/agreements",{method:"POST",body:JSON.stringify({agreementKey:data.draft.key,version:data.draft.version,acknowledged:form.elements.acknowledged.checked})});notice("Receipt acknowledgement recorded. This is not contractual acceptance.");await runAction("load-agreements",button);}catch(error){notice(error.message,true);}}));
       panel?.querySelectorAll("[data-select-quote]").forEach((control)=>control.addEventListener("click",async()=>{try{const result=await api("/api/marketplace/referral-invitations",{method:"POST",body:JSON.stringify({action:"select_quote",quoteId:control.dataset.selectQuote})});notice(result.message);await runAction("load-invitations",button);}catch(error){notice(error.message,true);}}));
       panel?.querySelectorAll("[data-invitation-action]").forEach((control)=>control.addEventListener("click",async()=>{try{const result=await api("/api/marketplace/referral-invitations",{method:"POST",body:JSON.stringify({action:control.dataset.invitationAction,invitationId:control.dataset.id})});notice(result.message);await runAction("load-invitations",button);}catch(error){notice(error.message,true);}}));
