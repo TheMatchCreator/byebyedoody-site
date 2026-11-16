@@ -53,7 +53,7 @@ export async function onRequest({ request, env }) {
         FROM provider_quotes q JOIN service_requests r ON r.id = q.request_id
         JOIN provider_profiles p ON p.user_id = q.provider_id
         JOIN app_users pu ON pu.id = p.user_id
-        WHERE q.id = ? AND r.customer_id = ? AND q.status = 'offered'
+        WHERE q.id = ? AND r.customer_id = ? AND r.matching_consent_at IS NOT NULL AND q.status = 'offered'
           AND p.onboarding_status = 'approved' AND pu.account_status = 'active'`)
         .bind(quoteId, user.id).first();
       if (!quote) return json({ error: "An available quote on one of your requests was not found." }, 404);
@@ -75,6 +75,13 @@ export async function onRequest({ request, env }) {
     }
     const allowed = action === "customer_cancel" ? user.role === "customer" : user.role === "provider";
     if (!allowed) return json({ error: "This action is not available for your account role." }, 403);
+    if (action === "provider_accept") {
+      const provider = await env.DB.prepare("SELECT onboarding_status FROM provider_profiles WHERE user_id = ?")
+        .bind(user.id).first();
+      if (!provider || provider.onboarding_status !== "approved") {
+        return json({ error: "Only currently approved providers can accept referral invitations." }, 403);
+      }
+    }
     const next = action === "provider_accept" ? "accepted_by_provider"
       : action === "provider_decline" ? "declined_by_provider" : "cancelled_by_customer";
     const ownerColumn = user.role === "customer" ? "customer_id" : "provider_id";
