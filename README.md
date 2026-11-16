@@ -22,7 +22,7 @@ Responsive website and staged marketplace project for a Sacramento-area dog-wast
 - `functions/api/marketplace/requests.js` — authenticated customer request create/list API; private address and notes are AES-GCM encrypted before storage
 - `functions/api/marketplace/request-actions.js` — customers can cancel their own unaccepted requests; pending invitations are cancelled, open quotes expire, and provider acceptance is blocked after cancellation
 - `functions/api/marketplace/availability.js` — approved providers can view and manage their own availability windows; this does not dispatch jobs or require them to accept referrals
-- `functions/api/marketplace/provider-application.js` — provider application submission with business/service ZIP details and independence attestations
+- `functions/api/marketplace/provider-application.js` — provider application submission with business/service ZIP details and independence attestations; first submission bootstraps a pending provider row from the verified signed provider role and saves the application, ZIP areas, and audit record atomically
 - `functions/api/marketplace/admin-providers.js` — admin-only provider application review and approval with an audit trail
 - `functions/api/marketplace/admin-matches.js` — admin-only referral candidate suggestions based on matching ZIP codes and provider-opted availability
 - `functions/api/marketplace/quotes.js` — provider independently submits a rate quote; customers can list quotes for their own requests. Quotes do not create bookings or charges
