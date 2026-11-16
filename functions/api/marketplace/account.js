@@ -1,3 +1,4 @@
+import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { requireUser } from "../../_shared/marketplace-auth.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -10,6 +11,8 @@ export async function onRequest({ request, env }) {
   const auth = await requireUser(request, env, ["customer"]);
   if (auth.response) return auth.response;
   const user = auth.user;
+  const limited = await enforceRateLimit(env, user.id, "customer_account_bootstrap", 2, 86400);
+  if (limited) return limited;
   try {
     await env.DB.prepare(
       "INSERT OR IGNORE INTO app_users (id, role, email_verified_at, account_status) VALUES (?, 'customer', CURRENT_TIMESTAMP, 'active')"
