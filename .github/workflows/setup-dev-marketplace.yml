@@ -1,0 +1,35 @@
+name: Set up ByeByeDoody development marketplace
+
+# Creates/updates the development database and the Pages PREVIEW settings.
+# Needs the repository secret CLOUDFLARE_API_TOKEN (Account: D1 Edit, Cloudflare Pages Edit).
+# CLOUDFLARE_ACCOUNT_ID is optional; the script finds the account that owns the project.
+on:
+  workflow_dispatch:
+  push:
+    branches: [marketplace-auth]
+    paths:
+      - ".github/workflows/setup-dev-marketplace.yml"
+      - "scripts/setup-dev-marketplace.mjs"
+      - "migrations/**"
+      - "ops/run-dev-setup"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: setup-dev-marketplace
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Set up database and preview settings
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/setup-dev-marketplace.mjs
