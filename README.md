@@ -64,6 +64,7 @@ The marketplace is not yet a live booking or dispatch system.
 - `migrations/0005_notification_read_state.sql` — adds in-app notification read state; not yet applied.
 - `migrations/0006_api_rate_limits.sql` — per-account write-rate limit buckets; not yet applied.
 - `functions/_shared/marketplace-rate-limit.js` — fail-closed D1-backed fixed-window limits for marketplace write routes.
+- Default account limits: customer request creation 6/hour; provider applications 3/day; provider quotes 10/hour; invitation actions 12/hour; privacy requests 3/day; issue reports 5/hour; customer account bootstrap 2/day. Tune these only after non-production load and abuse testing.
 - `GET /api/marketplace/status` — safe readiness summary. It never returns secret values or personal data; a successful HTTP response does not mean the marketplace is launch-ready.
 - The owner selected an independent service-provider referral-agency direction, subject to California employment counsel confirming the actual business model and practices.
 - The current fee design target is a separately disclosed customer-paid platform fee; it must not be deducted from the provider's independently agreed rate. The exact formula is not approved for production.
