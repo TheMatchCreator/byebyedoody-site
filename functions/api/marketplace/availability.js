@@ -46,11 +46,13 @@ export async function onRequest({ request, env }) {
     try { input = await request.json(); } catch { return json({ error: "Provide the availability window to withdraw." }, 400); }
     const id = typeof input.id === "string" ? input.id.slice(0, 80) : "";
     if (!id) return json({ error: "A valid availability ID is required." }, 400);
-    const result = await env.DB.prepare("UPDATE provider_availability SET status = 'withdrawn' WHERE id = ? AND provider_id = ? AND status IN ('available','unavailable')")
-      .bind(id, user.id).run();
-    if (!result.meta?.changes) return json({ error: "Availability window not found or already withdrawn." }, 404);
-    await env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'provider_availability_withdrawn', 'provider_availability', ?)")
-      .bind(crypto.randomUUID(), user.id, id).run();
+    const results = await env.DB.batch([
+      env.DB.prepare("UPDATE provider_availability SET status = 'withdrawn' WHERE id = ? AND provider_id = ? AND status IN ('available','unavailable')")
+        .bind(id, user.id),
+      env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) SELECT ?, ?, 'provider_availability_withdrawn', 'provider_availability', ? WHERE changes() = 1")
+        .bind(crypto.randomUUID(), user.id, id)
+    ]);
+    if (!results[0]?.meta?.changes) return json({ error: "Availability window not found or already withdrawn." }, 404);
     return json({ ok: true, id, status: "withdrawn" });
   }
 
