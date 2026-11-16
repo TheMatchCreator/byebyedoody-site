@@ -9,7 +9,7 @@ const cf = async (p, o = {}) => { const r = await fetch("https://api.cloudflare.
 const db = (await cf(`/accounts/${ACC}/d1/database?name=byebyedoody-marketplace-dev`))[0];
 const q = async (sql, params = []) => (await cf(`/accounts/${ACC}/d1/database/${db.uuid}/query`, { method: "POST", body: JSON.stringify({ sql, params }) }))[0];
 const WRONG = "auth0|6afb8b866b2193fbf0b84d6a";
-const ADMIN = process.env.BBD_ADMIN_ID || "";
+const ADMIN = process.env.BBD_ADMIN_ID || "auth0|6afb8fb02e951191574d77ab"; // byebyedoody123@aol.com
 const PROVIDER = "google-oauth2|109308270764906462496";
 await q("UPDATE app_users SET role = 'customer', account_status = 'closed', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [WRONG]);
 if (ADMIN) await q("INSERT INTO app_users (id, role, account_status) VALUES (?, 'admin', 'active') ON CONFLICT(id) DO UPDATE SET role = 'admin', account_status = 'active', updated_at = CURRENT_TIMESTAMP", [ADMIN]);
