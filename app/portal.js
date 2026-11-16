@@ -123,7 +123,7 @@
     const panel = button.closest(".portal-panel");
     const target = panel?.querySelector("[data-results],[data-invitations],[data-areas],[data-availability],[data-privacy],[data-providers],[data-matches],[data-agreements],[data-notifications]");
     if (target) target.textContent = "Loading…";
-    const renderRows = (rows, fields) => rows.length ? rows.map((row) => "<div class='portal-result-row'>"+fields.map(([key,label])=>"<span><b>"+escapeHtml(label)+":</b> "+escapeHtml(row[key] ?? "—")+"</span>").join("")+(action==="load-requests" && state.role==="provider" ? "<button type='button' data-quote-request='"+escapeHtml(row.id)+"'>Prepare quote</button>" : "")+"</div>").join("") : "<p>No records found.</p>";
+    const renderRows = (rows, fields) => rows.length ? rows.map((row) => "<div class='portal-result-row'>"+fields.map(([key,label])=>"<span><b>"+escapeHtml(label)+":</b> "+escapeHtml(row[key] ?? "—")+"</span>").join("")+(action==="load-requests" && state.role==="provider" ? "<button type='button' data-quote-request='"+escapeHtml(row.id)+"'>Prepare quote</button>" : action==="load-requests" && state.role==="customer" && ["submitted","quoted","open_for_referral"].includes(row.status) ? "<button type='button' data-cancel-request='"+escapeHtml(row.id)+"'>Cancel request</button>" : "")+"</div>").join("") : "<p>No records found.</p>";
     try {
       let data, html = "";
       if (action === "load-requests") { data=await api("/api/marketplace/requests"); html=renderRows(data.requests||[],[["service_zip","ZIP"],["service_type","Frequency"],["dog_count","Dogs"],["yard_size","Yard"],["status","Status"],["created_at","Submitted"]]); }
@@ -160,6 +160,14 @@
         render("quotes");
         const field=root.querySelector('input[name="requestId"]');
         if(field) field.value=control.dataset.quoteRequest;
+      }));
+      panel?.querySelectorAll("[data-cancel-request]").forEach((control)=>control.addEventListener("click",async()=>{
+        if(!window.confirm("Cancel this service request? Pending invitations will be cancelled and open quotes expired.")) return;
+        try {
+          const result=await api("/api/marketplace/request-actions",{method:"POST",body:JSON.stringify({action:"cancel",requestId:control.dataset.cancelRequest})});
+          notice(result.message);
+          await runAction("load-requests",button);
+        } catch(error) { notice(error.message,true); }
       }));
       target?.querySelectorAll("[data-notification-read]").forEach((control)=>control.addEventListener("click",async()=>{try{await api("/api/marketplace/notifications",{method:"POST",body:JSON.stringify({action:"mark_read",id:control.dataset.notificationRead})});await runAction("load-notifications",button);}catch(error){notice(error.message,true);}}));
       target?.querySelectorAll("[data-draft-ack]").forEach((form)=>form.addEventListener("submit",async(event)=>{event.preventDefault();try{await api("/api/marketplace/agreements",{method:"POST",body:JSON.stringify({agreementKey:data.draft.key,version:data.draft.version,acknowledged:form.elements.acknowledged.checked})});notice("Receipt acknowledgement recorded. This is not contractual acceptance.");await runAction("load-agreements",button);}catch(error){notice(error.message,true);}}));
