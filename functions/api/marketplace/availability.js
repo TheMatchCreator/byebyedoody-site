@@ -74,14 +74,19 @@ export async function onRequest({ request, env }) {
   if (overlap) return json({ error: "This window overlaps another availability window. Withdraw or adjust the existing window first." }, 409);
   const id = crypto.randomUUID();
   try {
-    await env.DB.prepare(
-      "INSERT INTO provider_availability (id, provider_id, starts_at, ends_at, status) VALUES (?, ?, ?, ?, ?)"
-    ).bind(id, user.id, new Date(start).toISOString(), new Date(end).toISOString(), status).run();
-    await env.DB.prepare(
-      "INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'provider_availability_created', 'provider_availability', ?)"
-    ).bind(crypto.randomUUID(), user.id, id).run();
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO provider_availability (id, provider_id, starts_at, ends_at, status) VALUES (?, ?, ?, ?, ?)"
+      ).bind(id, user.id, new Date(start).toISOString(), new Date(end).toISOString(), status),
+      env.DB.prepare(
+        "INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'provider_availability_created', 'provider_availability', ?)"
+      ).bind(crypto.randomUUID(), user.id, id)
+    ]);
     return json({ ok: true, availability: { id, startsAt: new Date(start).toISOString(), endsAt: new Date(end).toISOString(), status } }, 201);
   } catch (error) {
+    if (String(error?.message || "").includes("provider_availability_overlap")) {
+      return json({ error: "This window overlaps another availability window. Withdraw or adjust the existing window first." }, 409);
+    }
     console.error("Provider availability save failed:", error?.message || "database_error");
     return json({ error: "Availability could not be saved." }, 500);
   }
