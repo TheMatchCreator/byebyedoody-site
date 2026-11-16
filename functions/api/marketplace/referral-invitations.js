@@ -93,8 +93,14 @@ export async function onRequest({ request, env }) {
     const recipientId = user.role === "customer" ? invitation.provider_id : invitation.customer_id;
     const result = await env.DB.prepare(`UPDATE referral_invitations
       SET status = ?, responded_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND ${ownerColumn} = ? AND status = 'awaiting_provider'`)
-      .bind(next, id, user.id).run();
+      WHERE id = ? AND ${ownerColumn} = ? AND status = 'awaiting_provider'
+        AND (? != 'accepted_by_provider' OR EXISTS (
+          SELECT 1 FROM service_requests r
+          WHERE r.id = referral_invitations.request_id
+            AND r.status IN ('submitted','quoted','open_for_referral')
+            AND r.matching_consent_at IS NOT NULL
+        ))`)
+      .bind(next, id, user.id, next).run();
     if (!result.meta?.changes) return json({ error: "The invitation has already been updated." }, 409);
     await env.DB.batch([
       env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, ?, 'referral_invitation', ?)")
