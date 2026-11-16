@@ -33,7 +33,7 @@ export async function onRequest({ request, env }) {
   if (!sameOrigin(request)) return json({ error: "Request origin could not be verified." }, 403);
   if (!env.DB) return json({ error: "Marketplace database is not connected." }, 503);
 
-  const auth = await requireUser(request, env, ["customer", "admin"]);
+  const auth = await requireUser(request, env, ["customer", "provider", "admin"]);
   if (auth.response) return auth.response;
   const user = auth.user;
   try {
@@ -48,9 +48,16 @@ export async function onRequest({ request, env }) {
 
   if (request.method === "GET") {
     try {
-      const result = user.role === "admin"
-        ? await env.DB.prepare("SELECT id, customer_id, service_zip, service_type, dog_count, yard_size, status, created_at FROM service_requests ORDER BY created_at DESC LIMIT 100").all()
-        : await env.DB.prepare("SELECT id, service_zip, service_type, dog_count, yard_size, status, created_at FROM service_requests WHERE customer_id = ? ORDER BY created_at DESC LIMIT 50").bind(user.id).all();
+      let result;
+      if (user.role === "admin") {
+        result = await env.DB.prepare("SELECT id, customer_id, service_zip, service_type, dog_count, yard_size, status, created_at, matching_consent_at FROM service_requests ORDER BY created_at DESC LIMIT 100").all();
+      } else if (user.role === "provider") {
+        const provider = await env.DB.prepare("SELECT onboarding_status FROM provider_profiles WHERE user_id = ?").bind(user.id).first();
+        if (!provider || provider.onboarding_status !== "approved") return json({ error: "Only approved providers can view opt-in service opportunities." }, 403);
+        result = await env.DB.prepare("SELECT r.id, r.service_zip, r.service_type, r.dog_count, r.yard_size, r.status, r.created_at FROM service_requests r JOIN provider_service_areas z ON z.zip_code = r.service_zip AND z.provider_id = ? AND z.active = 1 WHERE r.matching_consent_at IS NOT NULL AND r.status IN ('submitted','open_for_referral','quoted') AND NOT EXISTS (SELECT 1 FROM provider_quotes q WHERE q.request_id = r.id AND q.provider_id = ? AND q.status IN ('offered','accepted_by_customer')) ORDER BY r.created_at ASC LIMIT 50").bind(user.id, user.id).all();
+      } else {
+        result = await env.DB.prepare("SELECT id, service_zip, service_type, dog_count, yard_size, status, created_at FROM service_requests WHERE customer_id = ? ORDER BY created_at DESC LIMIT 50").bind(user.id).all();
+      }
       return json({ requests: result.results || [] });
     } catch (error) {
       console.error("Marketplace request listing failed:", error?.message || "database_error");
@@ -76,6 +83,7 @@ export async function onRequest({ request, env }) {
   if (!Number.isInteger(dogs) || dogs < 1 || dogs > 30) return json({ error: "Enter a dog count from 1 to 30." }, 400);
   if (!["small", "medium", "large", "unknown"].includes(yardSize)) return json({ error: "Choose a valid yard size." }, 400);
   if (input.consent !== true) return json({ error: "Please confirm permission to contact you about this service request." }, 400);
+  if (input.matchingConsent !== true) return json({ error: "Please choose whether to share your ZIP code and non-sensitive service details with approved providers for matching." }, 400);
 
   let addressCiphertext, notesCiphertext;
   try {
@@ -88,7 +96,7 @@ export async function onRequest({ request, env }) {
   const id = crypto.randomUUID();
   try {
     await env.DB.batch([
-      env.DB.prepare("INSERT INTO service_requests (id, customer_id, service_zip, service_address_ciphertext, service_type, dog_count, yard_size, scope_notes_ciphertext, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'submitted')")
+      env.DB.prepare("INSERT INTO service_requests (id, customer_id, service_zip, service_address_ciphertext, service_type, dog_count, yard_size, scope_notes_ciphertext, matching_consent_at, matching_consent_version, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'zip_matching_v1', 'submitted')")
         .bind(id, user.id, zip, addressCiphertext, serviceType, dogs, yardSize, notesCiphertext),
       env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'customer_request_submitted', 'service_request', ?)")
         .bind(crypto.randomUUID(), user.id, id)
