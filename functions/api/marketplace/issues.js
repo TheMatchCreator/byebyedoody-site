@@ -1,3 +1,4 @@
+import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { requireUser } from "../../_shared/marketplace-auth.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -25,6 +26,8 @@ export async function onRequest({ request, env }) {
     return json({ issues: rows.results || [] });
   }
   if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
+  const limited = await enforceRateLimit(env, user.id, "service_issue_create", 5, 3600);
+  if (limited) return limited;
   let input;
   try { input = await request.json(); } catch { return json({ error: "Please submit valid issue details." }, 400); }
   const referralId = typeof input.referralId === "string" ? input.referralId.slice(0, 80) : "";
