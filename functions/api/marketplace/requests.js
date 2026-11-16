@@ -50,7 +50,7 @@ export async function onRequest({ request, env }) {
     try {
       let result;
       if (user.role === "admin") {
-        result = await env.DB.prepare("SELECT id, customer_id, service_zip, service_type, dog_count, yard_size, status, created_at, matching_consent_at FROM service_requests ORDER BY created_at DESC LIMIT 100").all();
+        result = await env.DB.prepare("SELECT id, service_zip, service_type, dog_count, yard_size, status, created_at, matching_consent_at FROM service_requests ORDER BY created_at DESC LIMIT 100").all();
       } else if (user.role === "provider") {
         const provider = await env.DB.prepare("SELECT onboarding_status FROM provider_profiles WHERE user_id = ?").bind(user.id).first();
         if (!provider || provider.onboarding_status !== "approved") return json({ error: "Only approved providers can view opt-in service opportunities." }, 403);
