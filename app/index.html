@@ -22,7 +22,31 @@
 <article class="market-card"><div class="market-card-icon" aria-hidden="true">🛡️</div><p class="market-kicker">BUSINESS ADMINISTRATION</p><h2>Operate the network</h2><p>The planned private administration area will support application review, customer support, service-area controls, issue handling, and audited platform operations.</p><span class="market-status"><span class="status-dot"></span> Admin access not enabled</span><a class="button button-outline-dark" href="mailto:byebyedoody123@aol.com">Contact the owner</a></article>
 </div>
 </section>
+<section class="market-notice" aria-live="polite"><h2>Connection readiness</h2><p id="readiness-message">Checking the marketplace service configuration…</p><ul id="readiness-list"><li>Checking services…</li></ul><p class="fineprint">This checks configuration presence only. It does not verify legal approval, production security, or launch readiness.</p></section>
 <section class="market-notice"><h2>Why sign-in is not open yet</h2><p>We will not launch a pretend login or collect passwords without a secure identity provider. Account recovery, role-based access, administrator multi-factor authentication, and database permissions must be implemented before this portal can handle real accounts or private customer addresses.</p><p>For now, use the customer inquiry or provider information pages. Do not email passwords, identity documents, Social Security numbers, or bank information.</p></section>
 </main>
 <footer class="footer"><a class="brand brand-footer" href="/"><span class="brand-mark">B</span><span>ByeBye<span class="brand-accent">Doody</span><small>Yard cleanup made easy</small></span></a><div class="footer-links"><a href="/">Home</a><a href="/marketplace/">Marketplace</a><a href="/work-with-us.html">Work with us</a><a href="/contact.html">Contact</a><a href="mailto:byebyedoody123@aol.com">Email us</a></div><p>© <span data-year></span> ByeByeDoody. All rights reserved.</p></footer>
+<script>
+(async()=>{
+ const message=document.getElementById('readiness-message');
+ const list=document.getElementById('readiness-list');
+ try {
+  const response=await fetch('/api/marketplace/status',{headers:{'Accept':'application/json'},cache:'no-store'});
+  if(!response.ok) throw new Error('status unavailable');
+  const data=await response.json();
+  message.textContent=data.message;
+  list.replaceChildren();
+  const labels={databaseBinding:'Database binding',authenticationProvider:'Authentication provider',privateDocumentStorage:'Private document storage',notificationProvider:'Inquiry email delivery',marketplacePayments:'Marketplace payments'};
+  for(const [key,label] of Object.entries(labels)){
+   const item=document.createElement('li');
+   item.textContent=label+': '+(data.checks?.[key]?'configured':'not connected');
+   list.appendChild(item);
+  }
+ } catch {
+  message.textContent='The readiness service could not be reached. The account portal remains disabled.';
+  list.replaceChildren();
+  const item=document.createElement('li');item.textContent='Service status unavailable';list.appendChild(item);
+ }
+})();
+</script>
 </body></html>
