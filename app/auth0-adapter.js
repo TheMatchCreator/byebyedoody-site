@@ -51,6 +51,9 @@
     if (params.has("code") && params.has("state")) {
       try { await client.handleRedirectCallback(); justSignedIn = true; }
       finally { window.history.replaceState({}, document.title, "/app/"); }
+    } else {
+      // Quietly restore an existing Auth0 session after a page refresh (tokens stay in memory only).
+      try { await client.checkSession(); } catch {}
     }
     return client;
   })();
