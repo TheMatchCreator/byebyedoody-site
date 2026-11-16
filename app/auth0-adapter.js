@@ -18,6 +18,21 @@
   }
 
   let client = null;
+  let justSignedIn = false;
+  const ROLE_CLAIM = "https://byebyedoody.com/role";
+
+  // Right after a customer signs in, make sure their marketplace account record exists.
+  // The server creates it only from the signed token's customer role (never from this request).
+  async function ensureCustomerAccount(c) {
+    const claims = await c.getIdTokenClaims();
+    if (!claims || claims[ROLE_CLAIM] !== "customer") return "";
+    const token = await c.getTokenSilently();
+    const res = await fetch("/api/marketplace/account", { method: "POST", headers: { Authorization: "Bearer " + token, Accept: "application/json" }, cache: "no-store" });
+    if (res.ok) return " Your customer account is ready.";
+    const data = await res.json().catch(() => ({}));
+    return " (Account setup: " + (data.error || "could not be completed") + ")";
+  }
+
   const ready = (async () => {
     if (typeof window.auth0 === "undefined" || typeof window.auth0.createAuth0Client !== "function") {
       throw new Error("The sign-in service could not be loaded. Please refresh the page.");
@@ -31,7 +46,7 @@
     });
     const params = new URLSearchParams(window.location.search);
     if (params.has("code") && params.has("state")) {
-      try { await client.handleRedirectCallback(); }
+      try { await client.handleRedirectCallback(); justSignedIn = true; }
       finally { window.history.replaceState({}, document.title, "/app/"); }
     }
     return client;
@@ -43,7 +58,9 @@
       const signedIn = await c.isAuthenticated();
       if (signedIn) {
         const user = await c.getUser();
-        setStatus("Signed in" + (user && user.email ? " as " + user.email : "") + ".");
+        let extra = "";
+        if (justSignedIn) { justSignedIn = false; try { extra = await ensureCustomerAccount(c); } catch { extra = " (Account setup could not be completed.)"; } }
+        setStatus("Signed in" + (user && user.email ? " as " + user.email : "") + "." + extra);
       } else {
         setStatus("You are not signed in.");
       }
