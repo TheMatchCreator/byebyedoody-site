@@ -3,13 +3,23 @@ import { requireUser } from "../../_shared/marketplace-auth.js";
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }
 });
+const sameOrigin = (request) => {
+  const origin = request.headers.get("Origin");
+  if (!origin) return true;
+  try { return new URL(origin).host === new URL(request.url).host; } catch { return false; }
+};
 
 export async function onRequest({ request, env }) {
+  if (!sameOrigin(request)) return json({ error: "Request origin could not be verified." }, 403);
   if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
   if (!env.DB) return json({ error: "Marketplace database is not connected." }, 503);
   const auth = await requireUser(request, env, ["customer", "provider"]);
   if (auth.response) return auth.response;
   const user = auth.user;
+  const account = await env.DB.prepare("SELECT role, account_status FROM app_users WHERE id = ?").bind(user.id).first();
+  if (!account || account.role !== user.role || account.account_status !== "active") {
+    return json({ error: "Your account is not active for marketplace access." }, 403);
+  }
   let input;
   try { input = await request.json(); } catch { return json({ error: "Submit a valid quote action." }, 400); }
   const quoteId = typeof input.quoteId === "string" ? input.quoteId.slice(0, 80) : "";
