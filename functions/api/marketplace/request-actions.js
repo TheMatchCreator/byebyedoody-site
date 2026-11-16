@@ -52,14 +52,14 @@ export async function onRequest({ request, env }) {
         "INSERT INTO audit_events (id, actor_id, action, object_type, object_id) SELECT ?, ?, 'customer_cancelled_request', 'service_request', ? WHERE changes() = 1"
       ).bind(crypto.randomUUID(), user.id, requestId),
       env.DB.prepare(
-        "UPDATE referral_invitations SET status = 'cancelled_by_customer', responded_at = CURRENT_TIMESTAMP WHERE request_id = ? AND customer_id = ? AND status = 'awaiting_provider'"
-      ).bind(requestId, user.id),
+        "UPDATE referral_invitations SET status = 'cancelled_by_customer', responded_at = CURRENT_TIMESTAMP WHERE request_id = ? AND customer_id = ? AND status = 'awaiting_provider' AND EXISTS (SELECT 1 FROM service_requests WHERE id = ? AND customer_id = ? AND status = 'cancelled')"
+      ).bind(requestId, user.id, requestId, user.id),
       env.DB.prepare(
         "INSERT INTO notification_events (id, user_id, channel, template_key, delivery_status) SELECT lower(hex(randomblob(16))), provider_id, 'in_app', 'referral_cancelled_by_customer', 'queued' FROM referral_invitations WHERE request_id = ? AND status = 'cancelled_by_customer' AND changes() > 0"
       ).bind(requestId),
       env.DB.prepare(
-        "UPDATE provider_quotes SET status = 'expired' WHERE request_id = ? AND status = 'offered'"
-      ).bind(requestId)
+        "UPDATE provider_quotes SET status = 'expired' WHERE request_id = ? AND status = 'offered' AND EXISTS (SELECT 1 FROM service_requests WHERE id = ? AND customer_id = ? AND status = 'cancelled')"
+      ).bind(requestId, requestId, user.id)
     ]);
     if (!results[0]?.meta?.changes) {
       return json({ error: "The request changed before cancellation could be completed. Refresh and try again." }, 409);
