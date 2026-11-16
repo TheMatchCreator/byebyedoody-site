@@ -37,6 +37,7 @@ export async function onRequest({ request, env }) {
     if (existing && ["submitted", "under_review", "approved"].includes(existing.onboarding_status)) {
       return json({ error: "An application is already on file. Contact support if you need to update it." }, 409);
     }
+    await env.DB.prepare("UPDATE app_users SET email_verified_at = COALESCE(email_verified_at, CURRENT_TIMESTAMP) WHERE id = ?").bind(user.id).run();
     await env.DB.prepare(
       "INSERT INTO provider_profiles (user_id, independent_business_name, business_registration_attested, own_tools_attested, independent_clients_attested, provider_sets_rates_attested, provider_sets_hours_attested, accepts_or_rejects_freely_attested, onboarding_status) VALUES (?, ?, 1, 1, 1, 1, 1, 1, 'submitted') ON CONFLICT(user_id) DO UPDATE SET independent_business_name = excluded.independent_business_name, business_registration_attested = 1, own_tools_attested = 1, independent_clients_attested = 1, provider_sets_rates_attested = 1, provider_sets_hours_attested = 1, accepts_or_rejects_freely_attested = 1, onboarding_status = 'submitted', reviewed_by = NULL, reviewed_at = NULL"
     ).bind(user.id, businessName).run();
