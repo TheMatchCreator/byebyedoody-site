@@ -39,6 +39,9 @@ This checklist is for a disposable, non-production Cloudflare D1 database and a 
 - [ ] Confirm unapproved or suspended providers cannot submit quotes, manage live availability, or accept invitations.
 - [ ] Confirm providers can choose their own rates, hours, ZIPs, and freely decline invitations without penalty.
 - [ ] Confirm duplicate active quotes and duplicate pending invitations are rejected.
+- [ ] Confirm a customer can cancel only their own unaccepted request; pending invitations cancel, offered quotes expire, and the action is audited.
+- [ ] Race-test customer cancellation against provider acceptance; exactly one valid state transition must win, and an accepted invitation must prevent cancellation.
+- [ ] Confirm D1 triggers enforce the 20-active-ZIP limit and prevent overlapping provider availability windows, including concurrent requests.
 - [ ] Confirm customer quote selection requires explicit matching consent.
 - [ ] Confirm invitation accept, decline, and customer cancellation are owner/role restricted and race-tested.
 - [ ] Confirm invitation acceptance is not represented as a booking, dispatch, assignment, charge, or payout.
@@ -50,6 +53,7 @@ This checklist is for a disposable, non-production Cloudflare D1 database and a 
 - [ ] Confirm the admin referral response contains no customer names, email, phone, street address, access notes, or private notes.
 - [ ] Confirm the admin response includes only operational ZIP/service/quote/referral status fields needed for oversight.
 - [ ] Confirm privacy and issue status changes create corresponding audit events.
+- [ ] Confirm quote creation, availability changes, and service-area changes commit with their audit records atomically; failed writes must not leave orphaned audit events or records.
 - [ ] Confirm no endpoint lets an admin silently create a booking, dispatch a provider, or mark payment as completed.
 
 ## Notifications and agreements
