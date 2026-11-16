@@ -1,3 +1,4 @@
+import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { requireUser } from "../../_shared/marketplace-auth.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -18,6 +19,8 @@ export async function onRequest({ request, env }) {
   if (auth.response) return auth.response;
   const user = auth.user;
   if (!user.email) return json({ error: "A verified email address is required." }, 403);
+  const limited = await enforceRateLimit(env, user.id, "provider_application_submit", 3, 86400);
+  if (limited) return limited;
 
   let input;
   try { input = await request.json(); } catch { return json({ error: "Please submit valid application details." }, 400); }
