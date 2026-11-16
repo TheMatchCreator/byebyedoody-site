@@ -37,11 +37,14 @@ export async function onRequest({ request, env }) {
         AND NOT EXISTS (SELECT 1 FROM referral_invitations i WHERE i.quote_id = q.id AND i.status IN ('awaiting_provider','accepted_by_provider'))`).bind(quoteId, user.id).first();
     if (!owner) return json({ error: "An active quote belonging to your account was not found." }, 404);
     const nextStatus = action === "withdraw" ? "withdrawn" : "declined";
-    await env.DB.batch([
-      env.DB.prepare("UPDATE provider_quotes SET status = ? WHERE id = ? AND status = 'offered'").bind(nextStatus, quoteId),
-      env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, ?, 'provider_quote', ?)")
+    const writes = await env.DB.batch([
+      env.DB.prepare(`UPDATE provider_quotes SET status = ? WHERE id = ? AND status = 'offered'
+        AND NOT EXISTS (SELECT 1 FROM referral_invitations i WHERE i.quote_id = provider_quotes.id AND i.status IN ('awaiting_provider','accepted_by_provider'))`)
+        .bind(nextStatus, quoteId),
+      env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) SELECT ?, ?, ?, 'provider_quote', ? WHERE changes() = 1")
         .bind(crypto.randomUUID(), user.id, "quote_" + nextStatus, quoteId)
     ]);
+    if (!writes[0]?.meta?.changes) return json({ error: "This quote has already changed or has an active provider invitation." }, 409);
     return json({ ok: true, quoteId, status: nextStatus, message: "No booking or payment was created." });
   } catch (error) {
     console.error("Quote action failed:", error?.message || "database_error");
