@@ -90,3 +90,5 @@ This checklist is for a disposable, non-production Cloudflare D1 database and a 
 - [ ] Confirm privacy notice, retention/deletion workflow, terms, fee disclosure, and support process are approved.
 - [ ] Obtain explicit owner approval before production migrations, authentication activation, bookings, charges, payouts, or location tracking.
 - [ ] Verify the Cloudflare Pages deployment after each approved release; a GitHub commit alone is not proof of deployment.
+
+- [ ] Confirm GitHub Actions `Marketplace static checks` passes on the release commit.
