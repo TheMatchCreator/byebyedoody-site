@@ -64,7 +64,9 @@ export async function onRequest({ request, env }) {
           VALUES (?, ?, ?, ?, ?, 'awaiting_provider')`)
           .bind(invitationId, quote.request_id, quote.id, user.id, quote.provider_id),
         env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'customer_selected_quote', 'referral_invitation', ?)")
-          .bind(crypto.randomUUID(), user.id, invitationId)
+          .bind(crypto.randomUUID(), user.id, invitationId),
+        env.DB.prepare("INSERT INTO notification_events (id, user_id, channel, template_key, delivery_status) VALUES (?, ?, 'in_app', 'provider_referral_invitation', 'queued')")
+          .bind(crypto.randomUUID(), quote.provider_id)
       ]);
       return json({ ok: true, invitationId, status: "awaiting_provider",
         message: "The provider has been invited to respond. This is not a booking, work assignment, or payment." }, 201);
@@ -85,13 +87,21 @@ export async function onRequest({ request, env }) {
     const next = action === "provider_accept" ? "accepted_by_provider"
       : action === "provider_decline" ? "declined_by_provider" : "cancelled_by_customer";
     const ownerColumn = user.role === "customer" ? "customer_id" : "provider_id";
+    const invitation = await env.DB.prepare("SELECT id, customer_id, provider_id FROM referral_invitations WHERE id = ? AND " + ownerColumn + " = ? AND status = 'awaiting_provider'")
+      .bind(id, user.id).first();
+    if (!invitation) return json({ error: "A pending invitation belonging to your account was not found." }, 404);
+    const recipientId = user.role === "customer" ? invitation.provider_id : invitation.customer_id;
     const result = await env.DB.prepare(`UPDATE referral_invitations
       SET status = ?, responded_at = CURRENT_TIMESTAMP
       WHERE id = ? AND ${ownerColumn} = ? AND status = 'awaiting_provider'`)
       .bind(next, id, user.id).run();
-    if (!result.meta?.changes) return json({ error: "A pending invitation belonging to your account was not found." }, 404);
-    await env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, ?, 'referral_invitation', ?)")
-      .bind(crypto.randomUUID(), user.id, "referral_" + next, id).run();
+    if (!result.meta?.changes) return json({ error: "The invitation has already been updated." }, 409);
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, ?, 'referral_invitation', ?)")
+        .bind(crypto.randomUUID(), user.id, "referral_" + next, id),
+      env.DB.prepare("INSERT INTO notification_events (id, user_id, channel, template_key, delivery_status) VALUES (?, ?, 'in_app', ?, 'queued')")
+        .bind(crypto.randomUUID(), recipientId, "referral_" + next)
+    ]);
     return json({ ok: true, invitationId: id, status: next,
       message: "The invitation response was recorded. No booking, dispatch, charge, or payout was created." });
   } catch (error) {
