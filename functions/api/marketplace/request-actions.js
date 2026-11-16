@@ -46,7 +46,7 @@ export async function onRequest({ request, env }) {
 
     const results = await env.DB.batch([
       env.DB.prepare(
-        "UPDATE service_requests SET status = 'cancelled' WHERE id = ? AND customer_id = ? AND status IN ('submitted','quoted','open_for_referral')"
+        "UPDATE service_requests SET status = 'cancelled' WHERE id = ? AND customer_id = ? AND status IN ('submitted','quoted','open_for_referral') AND NOT EXISTS (SELECT 1 FROM referral_invitations WHERE request_id = service_requests.id AND status = 'accepted_by_provider')"
       ).bind(requestId, user.id),
       env.DB.prepare(
         "INSERT INTO audit_events (id, actor_id, action, object_type, object_id) SELECT ?, ?, 'customer_cancelled_request', 'service_request', ? WHERE changes() = 1"
