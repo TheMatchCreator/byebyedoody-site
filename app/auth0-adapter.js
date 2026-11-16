@@ -1,6 +1,8 @@
 /* Connects the portal to Auth0 and provides the adapter portal.js expects:
-   window.BBDOODY_AUTH.getAccessToken(). Tokens are kept in memory by the
-   Auth0 SDK (its default), never in localStorage, and are never logged. */
+   window.BBDOODY_AUTH.getAccessToken(). The Auth0 SDK keeps the session in this
+   browser's localStorage so a page refresh does not sign the user out. This uses
+   Auth0 refresh-token rotation (a stolen, reused token is revoked) because browsers
+   block the cross-site cookie that memory-only sessions need. Tokens are never logged. */
 (() => {
   "use strict";
   const config = window.BBDOODY_AUTH_CONFIG || {};
@@ -45,15 +47,12 @@
       clientId: config.clientId,
       authorizationParams: { audience: config.audience, redirect_uri: window.location.origin + "/app/" },
       useRefreshTokens: true,
-      cacheLocation: "memory"
+      cacheLocation: "localstorage"
     });
     const params = new URLSearchParams(window.location.search);
     if (params.has("code") && params.has("state")) {
       try { await client.handleRedirectCallback(); justSignedIn = true; }
       finally { window.history.replaceState({}, document.title, "/app/"); }
-    } else {
-      // Quietly restore an existing Auth0 session after a page refresh (tokens stay in memory only).
-      try { await client.checkSession(); } catch {}
     }
     return client;
   })();
