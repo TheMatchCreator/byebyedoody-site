@@ -13,6 +13,7 @@ on:
       - "migrations/**"
       - "ops/run-dev-setup"
       - "ops/run-dev-check"
+      - "ops/run-dev-roles"
 
 permissions:
   contents: read
@@ -34,6 +35,11 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: node scripts/setup-dev-marketplace.mjs
+      - name: Apply owner-approved dev roles
+        if: hashFiles('ops/run-dev-roles') != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/dev-set-roles.mjs
       - name: Read-only database check
         if: always()
         env:
