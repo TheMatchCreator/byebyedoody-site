@@ -1,7 +1,7 @@
 // Provider job-alert settings. Turning alerts on stores the provider's sign-in email (encrypted)
 // so ByeByeDoody can email new nearby jobs. Turning them off deletes the stored email.
 import { requireUser } from "../../_shared/marketplace-auth.js";
-import { json, sameOrigin, activeAccount, readJson } from "../../_shared/http.js";
+import { json, sameOrigin, readJson } from "../../_shared/http.js";
 import { encryptPrivate } from "../../_shared/crypto.js";
 import { emailReady } from "../../_shared/email.js";
 
@@ -11,13 +11,18 @@ export async function onRequest({ request, env }) {
   const auth = await requireUser(request, env, ["provider"]);
   if (auth.response) return auth.response;
   const user = auth.user;
-  if (!(await activeAccount(env, user))) return json({ error: "Your account is not active for marketplace access." }, 403);
+  // Applicants (pending accounts) may see and set alerts; alerts are only sent once approved.
+  const account = await env.DB.prepare("SELECT role, account_status FROM app_users WHERE id = ?").bind(user.id).first();
   const profile = await env.DB.prepare("SELECT onboarding_status, job_alerts_enabled FROM provider_profiles WHERE user_id = ?").bind(user.id).first();
-  if (!profile) return json({ error: "Apply as a provider first." }, 404);
+  if (!account || !profile) {
+    if (request.method === "GET") return json({ applied: false, approved: false, emailAlerts: false, emailAvailable: emailReady(env), zips: [] });
+    return json({ error: "Fill in the provider application below first." }, 409);
+  }
+  if (account.role !== "provider" || ["suspended", "closed"].includes(account.account_status)) return json({ error: "Your account is not active for marketplace access." }, 403);
   const zips = ((await env.DB.prepare("SELECT zip_code FROM provider_service_areas WHERE provider_id = ? AND active = 1 ORDER BY zip_code").bind(user.id).all()).results || []).map((r) => r.zip_code);
 
   if (request.method === "GET") {
-    return json({ approved: profile.onboarding_status === "approved", emailAlerts: Boolean(profile.job_alerts_enabled), emailAvailable: emailReady(env), zips });
+    return json({ applied: true, status: profile.onboarding_status, approved: profile.onboarding_status === "approved", emailAlerts: Boolean(profile.job_alerts_enabled), emailAvailable: emailReady(env), zips });
   }
   if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
   let input; try { input = await readJson(request); } catch { return json({ error: "Submit a valid setting." }, 400); }

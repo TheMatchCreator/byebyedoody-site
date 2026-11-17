@@ -34,7 +34,13 @@
       <li class="${j.arrivedAt || j.completedAt ? "done" : ""}">Arrived</li><li class="${j.completedAt ? "done" : ""}">Done</li></ol>`;
 
   async function render() {
-    let d; try { d = await call("/api/marketplace/jobs"); } catch (e) { box.innerHTML = `<h2>My jobs</h2><p>${esc(e.message)}</p>`; return; }
+    let d; try { d = await call("/api/marketplace/jobs"); }
+    catch (e) {
+      const pending = /not active/i.test(e.message);
+      if (pending && role === "provider") { box.innerHTML = `<h2>My jobs</h2><p>Your paid jobs will show up here once your provider application is approved. Open <b>Provider tools</b> below to apply.</p>`; return; }
+      if (pending) { box.hidden = true; return; }
+      box.innerHTML = `<h2>My jobs</h2><p>${esc(e.message)}</p>`; return;
+    }
     if (!d.jobs.length) { box.innerHTML = `<h2>My jobs</h2><p>${role === "provider" ? "Paid jobs you accepted will show up here with the address and step-by-step buttons." : "After you pay for a job, you can follow it here from start to finish."}</p>`; return; }
     box.innerHTML = `<h2>My jobs</h2><p class="portal-muted">${esc(d.locationPolicy)}</p>` + d.jobs.map((j) => {
       const head = `<b>${esc(j.service)} · ZIP ${esc(j.zip)} · ${esc(j.dogs)} dog(s), ${esc(j.yard)} yard</b>${steps(j)}`;

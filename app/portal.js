@@ -175,8 +175,13 @@
     const toggle = pane.querySelector("[data-alerts-toggle]");
     if (toggle) {
       const status = pane.querySelector("[data-alerts-status]");
-      const show = (d) => { toggle.checked = d.emailAlerts; status.textContent = (d.emailAlerts ? "On. " : "Off. ") + (d.zips && d.zips.length ? "Your ZIP codes: " + d.zips.join(", ") + "." : "Add service ZIP codes below to start getting jobs.") + (d.approved === false ? " Alerts start once your application is approved." : ""); };
+      const show = (d) => {
+        if (d.applied === false) { toggle.checked = false; toggle.disabled = true; status.textContent = "Step 1: fill in the provider application below. You can turn on alerts right after."; return; }
+        toggle.disabled = false; toggle.checked = d.emailAlerts;
+        status.textContent = (d.emailAlerts ? "On. " : "Off. ") + (d.zips && d.zips.length ? "Your ZIP codes: " + d.zips.join(", ") + "." : "Add service ZIP codes below to start getting jobs.") + (d.approved === false ? " Your application is waiting for approval; alerts start as soon as you're approved." : "");
+      };
       api("/api/marketplace/job-alerts").then(show).catch((e) => { status.textContent = e.message; toggle.disabled = true; });
+      window.__bbdRefreshAlerts = () => api("/api/marketplace/job-alerts").then(show).catch(() => {});
       toggle.addEventListener("change", async () => {
         toggle.disabled = true;
         try { show(await api("/api/marketplace/job-alerts", { method: "POST", body: JSON.stringify({ emailAlerts: toggle.checked }) })); }
@@ -205,7 +210,7 @@
         const zipCodes = data.zipCodes.split(/[ ,;]+/).filter(Boolean);
         const attestations = {businessRegistration:form.elements.businessRegistration.checked,ownTools:form.elements.ownTools.checked,independentClients:form.elements.independentClients.checked,setsRates:form.elements.setsRates.checked,setsHours:form.elements.setsHours.checked,freeChoice:form.elements.freeChoice.checked};
         const result = await api("/api/marketplace/provider-application", { method:"POST", body:JSON.stringify({businessName:data.businessName,zipCodes,attestations}) });
-        notice("Provider application submitted: "+result.status+". It is awaiting review.");
+        notice("Application sent! ByeByeDoody will review it soon. Meanwhile, turn on job alerts above so you hear about jobs the moment you are approved."); if (window.__bbdRefreshAlerts) window.__bbdRefreshAlerts();
       } else if (form.dataset.form === "availability") {
         const toIso = (value) => new Date(value + ":00Z").toISOString();
         const result = await api("/api/marketplace/availability", { method:"POST", body:JSON.stringify({startsAt:toIso(data.startsAt),endsAt:toIso(data.endsAt),status:"available"}) });
