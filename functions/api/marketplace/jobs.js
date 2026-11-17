@@ -13,7 +13,15 @@ async function sharingConsent(env, referralId, providerId) {
   return env.DB.prepare("SELECT id, granted_at FROM location_consents WHERE referral_id = ? AND user_id = ? AND purpose = 'job_eta' AND revoked_at IS NULL ORDER BY granted_at DESC LIMIT 1").bind(referralId, providerId).first();
 }
 
-export async function onRequest({ request, env }) {
+export async function onRequest(context) {
+  try { return await handle(context); }
+  catch (e) {
+    console.error("Jobs API failed:", e?.message || "error");
+    return json({ error: "Something went wrong with this job update. Please try again.", detail: String(context.env.PAYMENTS_MODE || "") === "live" ? undefined : String(e?.message || e).slice(0, 300) }, 500);
+  }
+}
+
+async function handle({ request, env }) {
   if (!sameOrigin(request)) return json({ error: "Request origin could not be verified." }, 403);
   if (!env.DB) return json({ error: "Marketplace database is not connected." }, 503);
   const auth = await requireUser(request, env, ["customer", "provider"]);
