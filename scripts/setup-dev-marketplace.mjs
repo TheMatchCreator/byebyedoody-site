@@ -147,7 +147,17 @@ if (RAW_STRIPE.trim()) {
   const acct = await st("GET", "/account");
   console.log(`Stripe test key works. It belongs to Stripe account ${acct.id} ("${acct.settings?.dashboard?.display_name || acct.business_profile?.name || "unnamed"}", ${acct.country || "?"}).`);
   const EXPECTED = "acct_1UcV0YDVDW0PsHvW"; // ByeByeDoody sandbox (Connect enabled 2026-11-16)
-  if (acct.id !== EXPECTED) console.log(`WARNING: expected the ByeByeDoody sandbox ${EXPECTED}. The saved key is from a different Stripe account.`);
+  if (acct.id !== EXPECTED) {
+    // Undo anything an earlier run set up with this wrong key, then stop.
+    const hookUrlWrong = "https://marketplace-auth.byebyedoody-site.pages.dev/api/stripe-webhook";
+    for (const h of ((await st("GET", "/webhook_endpoints?limit=100")).data || []).filter((h) => h.url === hookUrlWrong)) {
+      await st("DELETE", `/webhook_endpoints/${h.id}`);
+      console.log("Removed the test webhook that was created on the wrong Stripe account.");
+    }
+    await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`, { method: "PATCH", body: JSON.stringify({ deployment_configs: { preview: { env_vars: { STRIPE_SECRET_KEY: null, STRIPE_WEBHOOK_SECRET: null } } } }) });
+    console.log("Removed the wrong Stripe settings from the test site.");
+    throw new Error(`The STRIPE_SECRET_KEY secret is from Stripe account ${acct.id}, not the ByeByeDoody sandbox ${EXPECTED}. Replace it with the ByeByeDoody sandbox test key.`);
+  }
   try { await st("GET", "/accounts?limit=1"); console.log("Stripe Connect: enabled."); }
   catch (e) { console.log("Stripe Connect: NOT enabled yet -> in the Stripe dashboard (test mode) open Connect and click Get started. " + e.message.slice(0, 160)); }
 
