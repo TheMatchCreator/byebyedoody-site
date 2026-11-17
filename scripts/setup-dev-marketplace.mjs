@@ -145,7 +145,9 @@ if (RAW_STRIPE.trim()) {
     return j;
   };
   const acct = await st("GET", "/account");
-  console.log(`Stripe test key works (platform account country: ${acct.country || "?"}).`);
+  console.log(`Stripe test key works. It belongs to Stripe account ${acct.id} ("${acct.settings?.dashboard?.display_name || acct.business_profile?.name || "unnamed"}", ${acct.country || "?"}).`);
+  const EXPECTED = "acct_1UcV0YDVDW0PsHvW"; // ByeByeDoody sandbox (Connect enabled 2026-11-16)
+  if (acct.id !== EXPECTED) console.log(`WARNING: expected the ByeByeDoody sandbox ${EXPECTED}. The saved key is from a different Stripe account.`);
   try { await st("GET", "/accounts?limit=1"); console.log("Stripe Connect: enabled."); }
   catch (e) { console.log("Stripe Connect: NOT enabled yet -> in the Stripe dashboard (test mode) open Connect and click Get started. " + e.message.slice(0, 160)); }
 
