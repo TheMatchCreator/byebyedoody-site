@@ -14,3 +14,5 @@
 .payments-panel[hidden]{display:none}
 .pay-badge{font-size:.7em;font-weight:600;background:#fff4d6;color:#7a5200;border-radius:999px;padding:2px 10px;vertical-align:middle}
 .payments-panel .portal-result-row{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+
+.auth-hint{flex-basis:100%;color:#4b5b52}
