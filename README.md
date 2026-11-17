@@ -75,6 +75,16 @@ The marketplace is not yet a live booking or dispatch system.
 - The portal UI now includes customer request/quote views, provider application/ZIP/availability tools, privacy and issue forms, and administrator overview/application review/matching screens. These screens call protected APIs but remain locked until a managed OIDC SDK supplies `window.BBDOODY_AUTH.getAccessToken()`. First-time customer provisioning is implemented at `POST /api/marketplace/account`; it accepts only a signed customer role and never accepts a role from the request body. Provider/admin identities still require trusted server-side role provisioning. No customer/provider sign-in SDK is configured yet. The request API is code-only until an OIDC issuer, audience, JWKS URL, active account rows, D1 binding, and encryption key are configured and tested. No password recovery, identity-document verification, live GPS tracking, automatic dispatch, booking acceptance, Stripe Connect marketplace payments, or payouts are active. Provider application attestations and admin review endpoints are scaffolding and require counsel-approved checks and operational procedures.
 - Do not collect Social Security numbers, government ID images, bank credentials, or card data in website forms or email.
 
+## Payments — Stripe test mode (owner-approved 2026-11-16)
+
+- Funds flow: Stripe Connect **Express** destination charges. The customer pays the provider's independently set rate plus a separately disclosed **platform fee equal to 20% of the customer total** (e.g. $30 rate → $37.50 total, $7.50 fee). The provider receives their full rate.
+- **Test mode only.** `functions/_shared/stripe.js` refuses any key that is not `sk_test_`/`rk_test_`, the webhook ignores live-mode events, and the setup script refuses live keys. Going live needs the legal review and a separate owner approval.
+- `functions/api/marketplace/payments-connect.js` — approved providers start/continue Stripe-hosted payout onboarding.
+- `functions/api/marketplace/payments-checkout.js` — customers see an itemized price for provider-accepted jobs and pay through Stripe Checkout after acknowledging the fee.
+- `functions/api/stripe-webhook.js` — signature-verified; records each paid session once in `payment_ledger`.
+- `migrations/0008_stripe_test_payments.sql` — replaces the unused 25%-fee draft `referrals` table with the 20%-of-total design and adds provider Stripe account fields.
+- Setup: add the repository secret `STRIPE_SECRET_KEY` (a **test** secret key) and run the "Set up ByeByeDoody development marketplace" workflow; it stores the key and a newly created webhook secret in the Pages preview environment.
+
 ## Required before marketplace launch
 
 1. Confirm the referral-agency model and all provider/customer agreements with California employment counsel.

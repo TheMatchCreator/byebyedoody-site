@@ -9,3 +9,8 @@
 .auth-bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;max-width:1100px;margin:0 auto 16px;padding:14px 20px;border:1px solid #d9e4dd;border-radius:14px;background:#f6faf7}
 .auth-bar p{margin:0;flex:1 1 220px}
 .auth-bar [hidden]{display:none}
+
+.payments-panel{max-width:1100px;margin:0 auto 18px;padding:20px 24px}
+.payments-panel[hidden]{display:none}
+.pay-badge{font-size:.7em;font-weight:600;background:#fff4d6;color:#7a5200;border-radius:999px;padding:2px 10px;vertical-align:middle}
+.payments-panel .portal-result-row{display:flex;flex-direction:column;gap:6px;margin-top:12px}

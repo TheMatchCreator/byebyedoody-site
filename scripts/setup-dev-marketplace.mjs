@@ -93,6 +93,10 @@ for (const file of files) {
   if (done.has(file)) { console.log(`= ${file} already applied`); continue; }
   const skip = alreadyThere[file] ? await alreadyThere[file]() : null;
   if (skip) { await record(file, "skipped: " + skip); console.log(`~ ${file} skipped (${skip})`); continue; }
+  if (file.startsWith("0008_") && (await tableExists("referrals"))) {
+    const n = (await query("SELECT COUNT(*) AS n FROM referrals"))[0]?.n || 0;
+    if (n > 0) throw new Error(`Refusing to apply ${file}: the old referrals table holds ${n} row(s).`);
+  }
   console.log(`+ applying ${file}`);
   execFileSync("npx", ["--yes", "wrangler@4", "d1", "execute", DB_NAME, "--remote", "--yes", `--file=migrations/${file}`],
     { stdio: "inherit", env: { ...process.env, CLOUDFLARE_ACCOUNT_ID: accountId } });
@@ -125,4 +129,51 @@ const lost = Object.keys(existingVars).filter((k) => !(after.env_vars || {})[k])
 if (lost.length) throw new Error(`Preview settings lost these variables, re-add them in Cloudflare: ${lost.join(", ")}`);
 console.log("Preview variables now set: " + Object.keys(after.env_vars || {}).sort().join(", "));
 console.log("Preview D1 binding DB -> " + DB_NAME + (after.d1_databases && after.d1_databases.DB ? " (connected)" : " (MISSING)"));
+
+// 5. Stripe TEST MODE (only when the STRIPE_SECRET_KEY repository secret is present)
+const RAW_STRIPE = String(process.env.STRIPE_SECRET_KEY || "");
+if (RAW_STRIPE.trim()) {
+  const sk = (RAW_STRIPE.match(/(sk|rk)_(test|live)_[A-Za-z0-9]+/) || [""])[0];
+  if (!sk) throw new Error("STRIPE_SECRET_KEY does not look like a Stripe secret key (it should start with sk_test_).");
+  console.log(`::add-mask::${sk}`);
+  if (!/^(sk|rk)_test_/.test(sk)) throw new Error("STRIPE_SECRET_KEY is a LIVE key. Only a TEST key (sk_test_...) is allowed here. Nothing was changed.");
+  const st = async (method, path, params) => {
+    const body = params ? new URLSearchParams(params).toString() : undefined;
+    const r = await fetch("https://api.stripe.com/v1" + path, { method, headers: { Authorization: `Bearer ${sk}`, ...(body ? { "Content-Type": "application/x-www-form-urlencoded" } : {}) }, body });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(`Stripe ${method} ${path} failed: ${j?.error?.message || r.status}`);
+    return j;
+  };
+  const acct = await st("GET", "/account");
+  console.log(`Stripe test key works (platform account country: ${acct.country || "?"}).`);
+  try { await st("GET", "/accounts?limit=1"); console.log("Stripe Connect: enabled."); }
+  catch (e) { console.log("Stripe Connect: NOT enabled yet -> in the Stripe dashboard (test mode) open Connect and click Get started. " + e.message.slice(0, 160)); }
+
+  const hookUrl = "https://marketplace-auth.byebyedoody-site.pages.dev/api/stripe-webhook";
+  const cur = (await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`)).deployment_configs.preview.env_vars || {};
+  const hooks = (await st("GET", "/webhook_endpoints?limit=100")).data || [];
+  const mine = hooks.filter((h) => h.url === hookUrl);
+  const stripeVars = { STRIPE_SECRET_KEY: { type: "secret_text", value: sk } };
+  if (!(cur.STRIPE_WEBHOOK_SECRET && mine.length === 1)) {
+    for (const h of mine) await st("DELETE", `/webhook_endpoints/${h.id}`);
+    const hook = await st("POST", "/webhook_endpoints", {
+      url: hookUrl,
+      "enabled_events[0]": "checkout.session.completed",
+      "enabled_events[1]": "checkout.session.async_payment_succeeded",
+      description: "ByeByeDoody test site (marketplace-auth preview)"
+    });
+    console.log(`::add-mask::${hook.secret}`);
+    stripeVars.STRIPE_WEBHOOK_SECRET = { type: "secret_text", value: hook.secret };
+    console.log("Created the Stripe test webhook for the test site.");
+  } else {
+    console.log("Stripe test webhook already set up; leaving it unchanged.");
+  }
+  await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`, { method: "PATCH", body: JSON.stringify({ deployment_configs: { preview: { env_vars: stripeVars } } }) });
+  const now = (await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`)).deployment_configs.preview.env_vars || {};
+  const lostAfter = Object.keys(cur).filter((k) => !now[k]);
+  if (lostAfter.length) throw new Error("Preview settings lost: " + lostAfter.join(", "));
+  console.log("Preview variables now set: " + Object.keys(now).sort().join(", "));
+} else {
+  console.log("Stripe: STRIPE_SECRET_KEY repository secret not set yet; skipping payments setup.");
+}
 console.log("Done. Push a new commit to a preview branch so the next deployment picks up these settings.");

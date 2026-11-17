@@ -47,7 +47,9 @@ export async function onRequestGet({ env }) {
     privateDataEncryption: Boolean(env.DATA_ENCRYPTION_KEY),
     privateDocumentStorage: Boolean(env.PRIVATE_DOCUMENTS),
     notificationProvider: Boolean(env.RESEND_API_KEY && env.LEADS_TO_EMAIL && env.FROM_EMAIL),
-    marketplacePayments: false
+    // Stripe TEST MODE only (owner-approved 2026-11-16). Live keys are refused by functions/_shared/stripe.js.
+    marketplacePayments: Boolean(/^(sk|rk)_test_/.test(String(env.STRIPE_SECRET_KEY || "").trim()) && env.STRIPE_WEBHOOK_SECRET),
+    paymentsMode: "test_only"
   };
 
   // The payment switch is deliberately hard-disabled until the business owner

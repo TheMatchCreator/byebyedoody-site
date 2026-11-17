@@ -92,6 +92,11 @@
       if (!(await c.isAuthenticated())) return null;
       return c.getTokenSilently();
     },
+    async claims() {
+      const c = await ready;
+      if (!(await c.isAuthenticated())) return null;
+      return c.getIdTokenClaims();
+    },
     async login() { const c = await ready; return c.loginWithRedirect(); },
     async logout() { const c = await ready; return c.logout({ logoutParams: { returnTo: window.location.origin + "/app/" } }); }
   };
