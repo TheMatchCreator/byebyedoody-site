@@ -26,6 +26,7 @@ jobs:
       - name: Set up production database and live-site settings
         env:
           BBD_TARGET: production
+          BBD_OWNER_ADMIN_ID: "auth0|6afc37f9b53fc5f0f4196a07"  # byebyedoody123@aol.com (owner, re-created 2026-11-17)
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           STRIPE_SECRET_KEY: ${{ secrets.BYEBYEDOODY_STRIPE_LIVE_KEY || secrets.BYEBYEDOODY_STRIPE_KEY }}
