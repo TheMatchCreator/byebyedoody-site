@@ -32,9 +32,14 @@
     if (role && role !== "customer") return "";
     try { if (sessionStorage.getItem("bbd_account_checked") === "yes") return ""; } catch {}
     const token = await c.getTokenSilently();
-    const res = await fetch("/api/marketplace/account", { method: "POST", headers: { Authorization: "Bearer " + token, Accept: "application/json" }, cache: "no-store" });
+    let ref = ""; try { ref = localStorage.getItem("bbd_ref") || ""; } catch {}
+    const res = await fetch("/api/marketplace/account", { method: "POST", headers: { Authorization: "Bearer " + token, Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ ref }), cache: "no-store" });
     if (res.ok || res.status === 429) { try { sessionStorage.setItem("bbd_account_checked", "yes"); } catch {} }
-    if (res.ok) return " Your customer account is ready.";
+    if (res.ok) {
+      const d = await res.json().catch(() => ({}));
+      if (ref) { try { localStorage.removeItem("bbd_ref"); } catch {} }
+      return d.referral && d.referral.applied ? " 🎁 Your $10 friend credit is ready: it comes off your first cleanup." : " Your customer account is ready.";
+    }
     const data = await res.json().catch(() => ({}));
     return " (Account setup: " + (data.error || "could not be completed") + ")";
   }

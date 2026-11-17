@@ -5,6 +5,7 @@
   "use strict";
   const box = document.querySelector("[data-jobs]");
   if (!box) return;
+  try { const q = new URLSearchParams(location.search).get("rebook"); if (q) sessionStorage.setItem("bbd_rebook", q.slice(0, 80)); } catch {}
   const ROLE_CLAIM = "https://byebyedoody.com/role";
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const money = (c) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format((Number(c) || 0) / 100);
@@ -17,7 +18,7 @@
     if (!res.ok) throw new Error(data.error || "The request could not be completed.");
     return data;
   }
-  let role = null, watchId = null, watchJob = null, lastSent = 0, pollTimer = null;
+  let lastJobs = [], role = null, watchId = null, watchJob = null, lastSent = 0, pollTimer = null;
 
   function stopWatch() { if (watchId !== null && navigator.geolocation) navigator.geolocation.clearWatch(watchId); watchId = null; watchJob = null; }
   function startWatch(jobId, statusEl) {
@@ -42,6 +43,7 @@
       box.innerHTML = `<h2>My jobs</h2><p>${esc(e.message)}</p>`; return;
     }
     if (!d.jobs.length) { box.innerHTML = `<h2>My jobs</h2><p>${role === "provider" ? "Paid jobs you accepted will show up here with the address and step-by-step buttons." : "After you pay for a job, you can follow it here from start to finish."}</p>`; return; }
+    lastJobs = d.jobs;
     box.innerHTML = `<h2>My jobs</h2><p class="portal-muted">${esc(d.locationPolicy)}</p>` + d.jobs.map((j) => {
       const head = `<b>${esc(j.service)} · ZIP ${esc(j.zip)} · ${esc(j.dogs)} dog(s), ${esc(j.yard)} yard</b>${steps(j)}`;
       if (role === "provider") {
@@ -61,8 +63,10 @@
       }
       const loc = j.location ? `<span>📍 Provider location (${ago(j.location.at)}): <a href="https://www.openstreetmap.org/?mlat=${j.location.lat}&mlon=${j.location.lng}#map=15/${j.location.lat}/${j.location.lng}" target="_blank" rel="noopener">see on map</a></span>` : (j.sharingLocation ? "<span>📍 Waiting for the provider's location…</span>" : "");
       const state = j.completedAt ? "Your provider marked the job done. Problem? Use Privacy & support > Report a service issue." : j.arrivedAt ? "Your provider has arrived." : j.onTheWayAt ? "Your provider is on the way!" : "Your provider will tap “On my way” when they head over.";
-      return `<div class="portal-result-row">${head}<span>${esc(j.provider)} · You paid ${money(j.amountCents)}</span><span><b>${state}</b></span>${loc}</div>`;
+      const again = j.completedAt && j.requestId ? `<div class="portal-actions"><button type="button" class="button button-dark" data-rebook="${esc(j.requestId)}">🔁 Book again</button>${j.serviceType === "one_time" ? `<button type="button" class="button button-outline-dark" data-rebook="${esc(j.requestId)}" data-weekly="1">📅 Make it weekly</button>` : ""}</div>` : "";
+      return `<div class="portal-result-row">${head}<span>${esc(j.provider)} · You paid ${money(j.amountCents)}</span><span><b>${state}</b></span>${loc}${again}</div>`;
     }).join("");
+    box.querySelectorAll("[data-rebook]").forEach((b) => b.addEventListener("click", () => rebook(b.dataset.rebook, b.dataset.weekly === "1", b)));
     box.querySelectorAll("[data-job]").forEach((row) => {
       const id = row.dataset.job, status = row.querySelector("[data-job-status]"), share = row.querySelector("[data-share]");
       if (share && share.checked && watchJob !== id) startWatch(id, status);
@@ -80,6 +84,20 @@
       }));
     });
   }
+  async function rebook(requestId, makeWeekly, btn) {
+    const job = (lastJobs || []).find((j) => j.requestId === requestId);
+    const serviceType = makeWeekly ? "weekly" : (job ? job.serviceType : "one_time");
+    try {
+      if (btn) btn.disabled = true;
+      const pr = job ? await call("/api/marketplace/price-suggestion", { method: "POST", body: JSON.stringify({ serviceType, dogCount: Number(job.dogs), yardSize: job.yard }) }) : null;
+      const total = pr ? pr.customerTotal.suggestedCents : null;
+      if (!window.confirm((makeWeekly ? "Start weekly service" : "Book this cleanup again") + (total ? " for " + money(total) + (serviceType === "one_time" ? "" : " per visit") + " total (includes ByeByeDoody's 20% platform fee)" : "") + "?\n\nSame address and details. You only pay after a local pro accepts.")) { if (btn) btn.disabled = false; return; }
+      const r = await call("/api/marketplace/rebook", { method: "POST", body: JSON.stringify({ requestId, makeWeekly, instantRateCents: pr ? pr.suggestedCents : undefined }) });
+      box.insertAdjacentHTML("afterbegin", `<p class="portal-notice">${esc(r.message)}</p>`);
+      box.scrollIntoView({ behavior: "smooth" });
+    } catch (e) { alert(e.message); }
+    if (btn) btn.disabled = false;
+  }
   async function init() {
     const auth = window.BBDOODY_AUTH;
     if (!auth || !auth.claims) { setTimeout(init, 500); return; }
@@ -87,6 +105,8 @@
     role = c && c[ROLE_CLAIM];
     if (role !== "provider" && role !== "customer") { box.hidden = true; return; }
     box.hidden = false; await render();
+    let rb = null; try { rb = sessionStorage.getItem("bbd_rebook"); } catch {}
+    if (rb && role === "customer") { try { sessionStorage.removeItem("bbd_rebook"); } catch {} if (location.search.includes("rebook")) history.replaceState({}, document.title, "/app/"); setTimeout(() => rebook(rb, false, null), 400); }
     clearInterval(pollTimer);
     if (role === "customer") pollTimer = setInterval(() => { if (!document.hidden) render(); }, 30000);
   }

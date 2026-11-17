@@ -22,6 +22,10 @@ How it works for PROVIDERS (independent businesses, not employees):
 Tip: turn on "AI auto-quote" in Provider tools and AI will instantly send your quote (at the AI price, adjusted up or down as you choose) on every new job in your ZIP codes, so you win jobs first. You can turn it off or withdraw any quote anytime.
 4. After the customer pays you see the address in "My jobs". Tap "On my way" (location sharing is optional and only during that job), "Arrived", then "Job done". You receive your full quoted rate through Stripe.
 
+REPEAT & REFERRALS:
+- After a job is done, "My jobs" shows "Book again" (one tap, same address) and "Make it weekly". Customers can turn on "Reminder emails" to get a one-tap rebook link when it's time again.
+- "Give $10, get $10": every customer has a share link in their account. A friend who signs up with it gets $10 off their first cleanup; the sharer gets $10 credit when the friend's first job is paid. Credits come off ByeByeDoody's platform fee, so pros still get their full rate.
+
 ACCOUNT HELP:
 - Forgot password: go to www.byebyedoody.com/app (or "My account" in the menu), click "Forgot your password?", type your email, and click "Email me a reset link". The link comes from no-reply@byebyedoody.com (check spam). Or on the sign-in screen click "Log in" then "Reset password".
 - Change password while signed in: click "Change my password" at the top of the account page.

@@ -1,5 +1,6 @@
 import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { requireUser } from "../../_shared/marketplace-auth.js";
+import { applyReferralCode } from "../../_shared/perks.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }
@@ -27,7 +28,12 @@ export async function onRequest({ request, env }) {
     await env.DB.prepare(
       "INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'customer_account_bootstrapped', 'app_user', ?)"
     ).bind(crypto.randomUUID(), user.id, user.id).run();
-    return json({ ok: true, account: { id: user.id, role: "customer", status: "active" } }, 201);
+    let referral = { applied: false };
+    try {
+      const body = await request.json().catch(() => ({}));
+      if (body && body.ref) referral = await applyReferralCode(env, user.id, body.ref);
+    } catch (e) { console.error("Referral apply failed:", e?.message || "error"); }
+    return json({ ok: true, account: { id: user.id, role: "customer", status: "active" }, referral }, 201);
   } catch (error) {
     console.error("Customer account bootstrap failed:", error?.message || "database_error");
     return json({ error: "Your account could not be initialized." }, 500);

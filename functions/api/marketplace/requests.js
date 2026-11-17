@@ -3,6 +3,7 @@ import { requireUser } from "../../_shared/marketplace-auth.js";
 import { alertProvidersForRequest } from "../../_shared/job-alerts.js";
 import { priceGuide, suggestPrice } from "../../_shared/ai.js";
 import { feeBreakdown } from "../../_shared/stripe.js";
+import { encryptPrivate as encryptEmail } from "../../_shared/crypto.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -119,6 +120,12 @@ export async function onRequest({ request, env, waitUntil }) {
         SELECT lower(hex(randomblob(16))), id, 'in_app', 'admin_new_customer_request', 'queued'
         FROM app_users WHERE role = 'admin' AND account_status = 'active'`)
     ]);
+    if (input.reminders === true && user.email) {
+      try {
+        const ct = await encryptEmail(user.email, env);
+        await env.DB.prepare("INSERT INTO customer_profiles (user_id, reminders_opt_in, contact_email_ciphertext) VALUES (?, 1, ?) ON CONFLICT(user_id) DO UPDATE SET reminders_opt_in = 1, contact_email_ciphertext = excluded.contact_email_ciphertext, updated_at = CURRENT_TIMESTAMP").bind(user.id, ct).run();
+      } catch (e) { console.error("Reminder opt-in failed:", e?.message || "error"); }
+    }
     const alerts = alertProvidersForRequest(env, { id, zip, serviceType, dogCount: dogs, yardSize, instantRateCents: instantRate }, new URL(request.url).origin)
       .catch((e) => console.error("Job alerts failed:", e?.message || "error"));
     if (typeof waitUntil === "function") waitUntil(alerts); else await alerts;

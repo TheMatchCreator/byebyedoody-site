@@ -52,7 +52,8 @@
       const d = await call("/api/marketplace/payments-checkout");
       testMode = d.mode !== "live"; box.querySelector("[data-test-badge]").hidden = !testMode;
       if (!d.jobs.length) { body.innerHTML = "<p>No accepted jobs to pay yet. Once a provider accepts your invitation, it will appear here.</p>"; return; }
-      body.innerHTML = `<p>${esc(d.feeDisclosure)}</p>` + d.jobs.map((j) => `
+      const credit = Number(d.creditCents) || 0;
+      body.innerHTML = `<p>${esc(d.feeDisclosure)}</p>` + (credit ? `<p><b>🎁 You have ${money(credit)} in referral credit.</b> It comes off ByeByeDoody's platform fee at checkout (your pro still gets their full rate).</p>` : "") + d.jobs.map((j) => `
         <div class="portal-result-row">
           <b>${esc(j.service)} cleanup · ZIP ${esc(j.zip)} · ${esc(j.provider)}</b>
           <span>Provider's rate: ${money(j.providerRateCents)}</span>

@@ -28,3 +28,6 @@
 .recovery-note,.recovery-msg{font-size:.9rem;color:#4b5b52;margin:0}
 .live-job.is-instant{border-left:4px solid #e0a100;background:#fffaf0}
 .live-job .button{margin-top:.4rem;align-self:flex-start}
+.perk-link{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:.5rem 0}
+.perk-link input{flex:1;min-width:200px;padding:.6rem .7rem;border:1px solid #d8e0d8;border-radius:9px;font:inherit}
+[data-perks] textarea{width:100%;font:inherit;padding:.5rem;border:1px solid #d8e0d8;border-radius:9px}

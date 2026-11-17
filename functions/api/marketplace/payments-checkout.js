@@ -6,6 +6,7 @@
 import { requireUser } from "../../_shared/marketplace-auth.js";
 import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { stripe, paymentsMode, stripeKey, feeBreakdown, PLATFORM_FEE_BASIS_POINTS, FEE_DISCLOSURE_VERSION } from "../../_shared/stripe.js";
+import { availableCredit } from "../../_shared/perks.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }
@@ -37,6 +38,7 @@ export async function onRequest({ request, env }) {
     return json({
       mode: stripeKey(env) ? paymentsMode(env) : "not_configured",
       feeDisclosure: "ByeByeDoody adds a separately disclosed platform fee equal to 20% of your total. Your provider receives their full quoted rate.",
+      creditCents: await availableCredit(env, user.id),
       jobs: rows.map((row) => ({
         invitationId: row.invitation_id,
         provider: row.independent_business_name,
@@ -92,24 +94,30 @@ export async function onRequest({ request, env }) {
       if (existing.status === "open" && existing.url) return json({ url: existing.url, mode: paymentsMode(env) });
       if (existing.status === "complete") return json({ error: "Payment is already being processed for this job." }, 409);
     }
+    // Referral credit comes only out of ByeByeDoody's platform fee (never the provider's rate).
+    const credit = Math.min(await availableCredit(env, user.id, referral.id), amounts.platformFeeCents);
+    await env.DB.prepare("INSERT INTO checkout_credits (referral_id, customer_id, credit_cents) VALUES (?, ?, ?) ON CONFLICT(referral_id) DO UPDATE SET credit_cents = excluded.credit_cents WHERE checkout_credits.consumed_at IS NULL")
+      .bind(referral.id, user.id, credit).run();
+    const feeCharged = amounts.platformFeeCents - credit;
+    const lineItems = [
+      { quantity: 1, price_data: { currency: "usd", unit_amount: amounts.providerRateCents, product_data: { name: `${SERVICE_LABEL[inv.service_type] || "Dog waste"} cleanup (independent provider's rate)` } } }
+    ];
+    if (feeCharged > 0) lineItems.push({ quantity: 1, price_data: { currency: "usd", unit_amount: feeCharged, product_data: { name: credit ? `ByeByeDoody platform fee (20% of total, after $${(credit / 100).toFixed(2)} referral credit)` : "ByeByeDoody platform fee (20% of total)" } } });
     const origin = new URL(request.url).origin;
     const session = await stripe(env, "POST", "/checkout/sessions", {
       mode: "payment",
       client_reference_id: referral.id,
       customer_email: user.email || undefined,
-      line_items: [
-        { quantity: 1, price_data: { currency: "usd", unit_amount: amounts.providerRateCents, product_data: { name: `${SERVICE_LABEL[inv.service_type] || "Dog waste"} cleanup (independent provider's rate)` } } },
-        { quantity: 1, price_data: { currency: "usd", unit_amount: amounts.platformFeeCents, product_data: { name: "ByeByeDoody platform fee (20% of total)" } } }
-      ],
+      line_items: lineItems,
       payment_intent_data: {
-        application_fee_amount: amounts.platformFeeCents,
+        ...(feeCharged > 0 ? { application_fee_amount: feeCharged } : {}),
         transfer_data: { destination: inv.stripe_account_id },
         metadata: { referral_id: referral.id, invitation_id: inv.id }
       },
       metadata: { referral_id: referral.id, invitation_id: inv.id },
       success_url: `${origin}/app/?payment=success`,
       cancel_url: `${origin}/app/?payment=cancelled`
-    }, `bbd-checkout-${referral.id}-${Math.floor(Date.now() / 600000)}`);
+    }, `bbd-checkout-${referral.id}-${credit}-${Math.floor(Date.now() / 600000)}`);
     await env.DB.prepare("UPDATE referrals SET stripe_checkout_session_id = ?, payment_status = 'checkout_open' WHERE id = ? AND payment_status <> 'paid'").bind(session.id, referral.id).run();
     return json({ url: session.url, mode: paymentsMode(env) });
   } catch (error) {

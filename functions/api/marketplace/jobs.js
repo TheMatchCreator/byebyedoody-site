@@ -5,6 +5,7 @@ import { requireUser } from "../../_shared/marketplace-auth.js";
 import { json, sameOrigin, activeAccount, readJson } from "../../_shared/http.js";
 import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { decryptPrivate } from "../../_shared/crypto.js";
+import { rebookDelayDays } from "../../_shared/perks.js";
 
 const CONSENT_VERSION = "job_location_v1";
 const SERVICE = { one_time: "One-time cleanup", weekly: "Weekly service", twice_weekly: "Twice-weekly service", custom: "Custom schedule" };
@@ -34,7 +35,7 @@ async function handle({ request, env }) {
   if (request.method === "GET") {
     const col = user.role === "provider" ? "f.provider_id" : "f.customer_id";
     const rows = (await env.DB.prepare(
-      `SELECT f.id, f.provider_id, f.status, f.payment_status, f.provider_rate_cents, f.customer_total_cents, f.on_the_way_at, f.arrived_at, f.completed_at, f.paid_at,
+      `SELECT f.id, f.request_id, f.provider_id, f.status, f.payment_status, f.provider_rate_cents, f.customer_total_cents, f.on_the_way_at, f.arrived_at, f.completed_at, f.paid_at,
               r.service_zip, r.service_type, r.dog_count, r.yard_size, r.service_address_ciphertext, r.scope_notes_ciphertext,
               p.independent_business_name AS provider_name
          FROM referrals f JOIN service_requests r ON r.id = f.request_id JOIN provider_profiles p ON p.user_id = f.provider_id
@@ -42,7 +43,7 @@ async function handle({ request, env }) {
     ).bind(user.id).all()).results || [];
     const jobs = [];
     for (const j of rows) {
-      const job = { id: j.id, status: j.status, service: SERVICE[j.service_type] || "Cleanup", zip: j.service_zip, dogs: j.dog_count, yard: j.yard_size,
+      const job = { id: j.id, requestId: user.role === "customer" ? j.request_id : undefined, serviceType: j.service_type, status: j.status, service: SERVICE[j.service_type] || "Cleanup", zip: j.service_zip, dogs: j.dog_count, yard: j.yard_size,
         provider: j.provider_name, onTheWayAt: j.on_the_way_at, arrivedAt: j.arrived_at, completedAt: j.completed_at,
         amountCents: user.role === "provider" ? j.provider_rate_cents : j.customer_total_cents };
       const consent = await sharingConsent(env, j.id, j.provider_id);
@@ -108,7 +109,10 @@ async function handle({ request, env }) {
       env.DB.prepare("UPDATE referrals SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = ?").bind(job.id),
       env.DB.prepare("UPDATE service_requests SET status = 'completed' WHERE id = ? AND status <> 'completed'").bind(job.request_id),
       env.DB.prepare("INSERT INTO job_events (id, referral_id, actor_id, event_type) VALUES (?, ?, ?, 'work_completed')").bind(crypto.randomUUID(), job.id, user.id),
-      revoke, notify("job_completed"), audit("job_completed")
+      revoke, notify("job_completed"), audit("job_completed"),
+      env.DB.prepare(`INSERT OR IGNORE INTO rebook_reminders (id, customer_id, request_id, due_at)
+         SELECT ?, r.customer_id, r.id, datetime('now', '+' || ? || ' days') FROM service_requests r WHERE r.id = ?`)
+        .bind(crypto.randomUUID(), String(rebookDelayDays((await env.DB.prepare("SELECT service_type FROM service_requests WHERE id = ?").bind(job.request_id).first())?.service_type)), job.request_id)
     ]);
     return json({ ok: true, sharingLocation: false });
   }
