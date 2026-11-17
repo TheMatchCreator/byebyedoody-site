@@ -146,7 +146,10 @@ if (RAW_STRIPE.trim()) {
   const sk = (RAW_STRIPE.match(/(sk|rk)_(test|live)_[A-Za-z0-9]+/) || [""])[0];
   if (!sk) throw new Error("STRIPE_SECRET_KEY does not look like a Stripe secret key (it should start with sk_test_).");
   console.log(`::add-mask::${sk}`);
-  if (!/^(sk|rk)_test_/.test(sk)) throw new Error("STRIPE_SECRET_KEY is a LIVE key. Only a TEST key (sk_test_...) is allowed here. Nothing was changed.");
+  const LIVE = /^(sk|rk)_live_/.test(sk);
+  if (LIVE && TARGET !== "production") throw new Error("A LIVE Stripe key is only allowed for the production site. Nothing was changed.");
+  if (TARGET === "production" && process.env.BBD_REQUIRE_LIVE === "yes" && !LIVE) throw new Error("Expected the LIVE Stripe secret key (sk_live_...) for the production site. Nothing was changed.");
+  console.log(`Stripe key mode: ${LIVE ? "LIVE (real payments)" : "test"}`);
   const st = async (method, path, params) => {
     const body = params ? new URLSearchParams(params).toString() : undefined;
     const r = await fetch("https://api.stripe.com/v1" + path, { method, headers: { Authorization: `Bearer ${sk}`, ...(body ? { "Content-Type": "application/x-www-form-urlencoded" } : {}) }, body });
@@ -157,7 +160,10 @@ if (RAW_STRIPE.trim()) {
   const acct = await st("GET", "/account");
   console.log(`Stripe test key works. It belongs to Stripe account ${acct.id} ("${acct.settings?.dashboard?.display_name || acct.business_profile?.name || "unnamed"}", ${acct.country || "?"}).`);
   const EXPECTED = "acct_1UcV0YDVDW0PsHvW"; // ByeByeDoody sandbox (Connect enabled 2026-11-16)
-  if (acct.id !== EXPECTED) {
+  const name = `${acct.settings?.dashboard?.display_name || ""} ${acct.business_profile?.name || ""}`;
+  const wrongAccount = LIVE ? !/byebyedoody/i.test(name) : acct.id !== EXPECTED;
+  if (LIVE) console.log(`Live account readiness: charges_enabled=${acct.charges_enabled} payouts_enabled=${acct.payouts_enabled} details_submitted=${acct.details_submitted}`);
+  if (wrongAccount) {
     // Undo anything an earlier run set up with this wrong key, then stop.
     const hookUrlWrong = "https://marketplace-auth.byebyedoody-site.pages.dev/api/stripe-webhook";
     for (const h of ((await st("GET", "/webhook_endpoints?limit=100")).data || []).filter((h) => h.url === hookUrlWrong)) {
@@ -166,23 +172,23 @@ if (RAW_STRIPE.trim()) {
     }
     await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`, { method: "PATCH", body: JSON.stringify({ deployment_configs: { [TARGET]: { env_vars: { STRIPE_SECRET_KEY: null, STRIPE_WEBHOOK_SECRET: null } } } }) });
     console.log("Removed the wrong Stripe settings from the test site.");
-    throw new Error(`The STRIPE_SECRET_KEY secret is from Stripe account ${acct.id}, not the ByeByeDoody sandbox ${EXPECTED}. Replace it with the ByeByeDoody sandbox test key.`);
+    throw new Error(`The Stripe key is from account ${acct.id} ("${name.trim()}"), not ByeByeDoody. Nothing was saved.`);
   }
   try { await st("GET", "/accounts?limit=1"); console.log("Stripe Connect: enabled."); }
   catch (e) { console.log("Stripe Connect: NOT enabled yet -> in the Stripe dashboard (test mode) open Connect and click Get started. " + e.message.slice(0, 160)); }
 
-  const hookUrl = `${SITE}/api/stripe-webhook`;
+  const hookUrl = `${TARGET === "production" ? "https://www.byebyedoody.com" : SITE}/api/stripe-webhook`;
   const cur = (await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`)).deployment_configs[TARGET].env_vars || {};
   const hooks = (await st("GET", "/webhook_endpoints?limit=100")).data || [];
   const mine = hooks.filter((h) => h.url === hookUrl);
-  const stripeVars = { STRIPE_SECRET_KEY: { type: "secret_text", value: sk } };
+  const stripeVars = { STRIPE_SECRET_KEY: { type: "secret_text", value: sk }, PAYMENTS_MODE: { type: "plain_text", value: LIVE ? "live" : "test" } };
   if (!(cur.STRIPE_WEBHOOK_SECRET && mine.length === 1)) {
     for (const h of mine) await st("DELETE", `/webhook_endpoints/${h.id}`);
     const hook = await st("POST", "/webhook_endpoints", {
       url: hookUrl,
       "enabled_events[0]": "checkout.session.completed",
       "enabled_events[1]": "checkout.session.async_payment_succeeded",
-      description: `ByeByeDoody ${TARGET} site (Stripe test mode)`
+      description: `ByeByeDoody ${TARGET} site (${LIVE ? "LIVE" : "test"} mode)`
     });
     console.log(`::add-mask::${hook.secret}`);
     stripeVars.STRIPE_WEBHOOK_SECRET = { type: "secret_text", value: hook.secret };

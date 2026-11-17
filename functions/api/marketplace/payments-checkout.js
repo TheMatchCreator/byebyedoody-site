@@ -1,11 +1,11 @@
-// Customers pay for a provider-accepted referral through Stripe Checkout (TEST MODE).
+// Customers pay for a provider-accepted referral through Stripe Checkout.
 // GET  -> the customer's accepted referrals with the itemized price and payment status.
 // POST -> { invitationId, feeAcknowledged: true } creates (or reuses) a Checkout Session.
 // Destination charge: the provider's full rate is transferred to their Connect account;
 // the separately disclosed 20%-of-total platform fee stays with ByeByeDoody.
 import { requireUser } from "../../_shared/marketplace-auth.js";
 import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
-import { stripe, stripeTestKey, feeBreakdown, PLATFORM_FEE_BASIS_POINTS, FEE_DISCLOSURE_VERSION } from "../../_shared/stripe.js";
+import { stripe, paymentsMode, stripeKey, feeBreakdown, PLATFORM_FEE_BASIS_POINTS, FEE_DISCLOSURE_VERSION } from "../../_shared/stripe.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }
@@ -35,7 +35,7 @@ export async function onRequest({ request, env }) {
        WHERE i.customer_id = ? AND i.status = 'accepted_by_provider'
        ORDER BY i.responded_at DESC LIMIT 25`).bind(user.id).all()).results || [];
     return json({
-      mode: stripeTestKey(env) ? "test" : "not_configured",
+      mode: stripeKey(env) ? paymentsMode(env) : "not_configured",
       feeDisclosure: "ByeByeDoody adds a separately disclosed platform fee equal to 20% of your total. Your provider receives their full quoted rate.",
       jobs: rows.map((row) => ({
         invitationId: row.invitation_id,
@@ -50,7 +50,7 @@ export async function onRequest({ request, env }) {
     });
   }
 
-  if (!stripeTestKey(env)) return json({ error: "Payments are not set up yet (Stripe test mode)." }, 503);
+  if (!stripeKey(env)) return json({ error: "Payments are not set up yet." }, 503);
   const limited = await enforceRateLimit(env, user.id, "customer_checkout", 10, 3600);
   if (limited) return limited;
   let input;
@@ -89,7 +89,7 @@ export async function onRequest({ request, env }) {
     }
     if (referral.stripe_checkout_session_id) {
       const existing = await stripe(env, "GET", `/checkout/sessions/${encodeURIComponent(referral.stripe_checkout_session_id)}`);
-      if (existing.status === "open" && existing.url) return json({ url: existing.url, mode: "test" });
+      if (existing.status === "open" && existing.url) return json({ url: existing.url, mode: paymentsMode(env) });
       if (existing.status === "complete") return json({ error: "Payment is already being processed for this job." }, 409);
     }
     const origin = new URL(request.url).origin;
@@ -111,7 +111,7 @@ export async function onRequest({ request, env }) {
       cancel_url: `${origin}/app/?payment=cancelled`
     }, `bbd-checkout-${referral.id}-${Math.floor(Date.now() / 600000)}`);
     await env.DB.prepare("UPDATE referrals SET stripe_checkout_session_id = ?, payment_status = 'checkout_open' WHERE id = ? AND payment_status <> 'paid'").bind(session.id, referral.id).run();
-    return json({ url: session.url, mode: "test" });
+    return json({ url: session.url, mode: paymentsMode(env) });
   } catch (error) {
     console.error("Stripe checkout failed:", error?.code || error?.status || error?.message || "error");
     return json({ error: "Checkout could not be started. Please try again." }, 502);

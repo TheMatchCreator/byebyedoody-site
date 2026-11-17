@@ -27,14 +27,15 @@ jobs:
             echo "Checking $file"
             node --check --input-type=module < "$file"
           done
-      - name: Verify marketplace remains staged and payments are test-mode only
+      - name: Verify payment mode safety checks
         shell: bash
         run: |
           set -euo pipefail
           grep -q 'readyForAuthenticatedTraffic: false' functions/api/marketplace/status.js
-          grep -q 'paymentsMode: "test_only"' functions/api/marketplace/status.js
+          grep -q 'paymentsMode: paymentsMode(env)' functions/api/marketplace/status.js
           grep -q '(sk|rk)_test_' functions/_shared/stripe.js
-          grep -q 'livemode === true' functions/api/stripe-webhook.js
+          grep -q '(sk|rk)_live_' functions/_shared/stripe.js
+          grep -q 'event.livemode !== (paymentsMode(env) === "live")' functions/api/stripe-webhook.js
           grep -q 'CHECK (platform_fee_rate_basis_points = 2000)' migrations/0008_stripe_test_payments.sql
           grep -q 'api_rate_limits' migrations/0006_api_rate_limits.sql
           grep -q 'matching_consent_at' migrations/0003_matching_consent.sql

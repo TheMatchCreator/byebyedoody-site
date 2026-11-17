@@ -1,3 +1,4 @@
+import { stripeKey, paymentsMode } from "../../_shared/stripe.js";
 // Public readiness endpoint. It intentionally exposes configuration presence only,
 // never secret values, account identifiers, database contents, or customer data.
 const response = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -47,9 +48,10 @@ export async function onRequestGet({ env }) {
     privateDataEncryption: Boolean(env.DATA_ENCRYPTION_KEY),
     privateDocumentStorage: Boolean(env.PRIVATE_DOCUMENTS),
     notificationProvider: Boolean(env.RESEND_API_KEY && env.LEADS_TO_EMAIL && env.FROM_EMAIL),
-    // Stripe TEST MODE only (owner-approved 2026-11-16). Live keys are refused by functions/_shared/stripe.js.
-    marketplacePayments: Boolean(/^(sk|rk)_test_/.test(String(env.STRIPE_SECRET_KEY || "").trim()) && env.STRIPE_WEBHOOK_SECRET),
-    paymentsMode: "test_only"
+    // PAYMENTS_MODE=live only on the production site (owner-approved 2026-11-16); elsewhere test.
+    // functions/_shared/stripe.js refuses keys that don't match the mode.
+    marketplacePayments: Boolean(stripeKey(env) && env.STRIPE_WEBHOOK_SECRET),
+    paymentsMode: paymentsMode(env)
   };
 
   // The payment switch is deliberately hard-disabled until the business owner

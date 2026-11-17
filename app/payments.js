@@ -1,4 +1,4 @@
-/* ByeByeDoody portal payments panel (Stripe TEST MODE).
+/* ByeByeDoody portal payments panel (Stripe; the API reports whether this site is in test or live mode).
    Providers set up payouts through Stripe Connect Express; customers pay accepted jobs
    through Stripe Checkout. Card, bank and identity details are entered on Stripe, never here. */
 (() => {
@@ -21,15 +21,17 @@
   async function role() {
     try { const c = await (window.BBDOODY_AUTH && window.BBDOODY_AUTH.claims ? window.BBDOODY_AUTH.claims() : null); return c && c[ROLE_CLAIM]; } catch { return null; }
   }
+  let testMode = true;
   const status = (msg, err) => { const el = box.querySelector("[data-pay-status]"); if (el) { el.textContent = msg; el.style.color = err ? "#a33" : ""; } };
 
   async function renderProvider() {
-    box.innerHTML = `<h2>Payouts <span class="pay-badge">Stripe test mode</span></h2>
+    box.innerHTML = `<h2>Payouts <span class="pay-badge" data-test-badge hidden>Stripe test mode</span></h2>
       <p>Get paid for accepted jobs through Stripe. Stripe collects your identity, bank and tax details directly; ByeByeDoody never sees them. You receive your full quoted rate.</p>
       <div data-pay-body>Checking payout setup…</div><p data-pay-status role="status"></p>`;
     const body = box.querySelector("[data-pay-body]");
     try {
       const s = await call("/api/marketplace/payments-connect");
+      testMode = s.mode !== "live"; box.querySelector("[data-test-badge]").hidden = !testMode;
       const ready = s.connected && s.chargesEnabled;
       body.innerHTML = ready
         ? `<p><b>Payouts are set up.</b> ${s.payoutsEnabled ? "Payouts to your bank are enabled." : "Stripe is still verifying your bank details."}</p><button type="button" class="button button-outline-dark" data-connect>Review payout details on Stripe</button>`
@@ -43,22 +45,24 @@
   }
 
   async function renderCustomer() {
-    box.innerHTML = `<h2>Pay for accepted jobs <span class="pay-badge">Stripe test mode</span></h2>
+    box.innerHTML = `<h2>Pay for accepted jobs <span class="pay-badge" data-test-badge hidden>Stripe test mode</span></h2>
       <div data-pay-body>Loading…</div><p data-pay-status role="status"></p>`;
     const body = box.querySelector("[data-pay-body]");
     try {
       const d = await call("/api/marketplace/payments-checkout");
+      testMode = d.mode !== "live"; box.querySelector("[data-test-badge]").hidden = !testMode;
       if (!d.jobs.length) { body.innerHTML = "<p>No accepted jobs to pay yet. Once a provider accepts your invitation, it will appear here.</p>"; return; }
       body.innerHTML = `<p>${esc(d.feeDisclosure)}</p>` + d.jobs.map((j) => `
         <div class="portal-result-row">
           <b>${esc(j.service)} cleanup · ZIP ${esc(j.zip)} · ${esc(j.provider)}</b>
           <span>Provider's rate: ${money(j.providerRateCents)}</span>
           <span>ByeByeDoody platform fee (20% of total): ${money(j.platformFeeCents)}</span>
+          <span class="portal-muted">Paid securely through Stripe. Card details are never stored by ByeByeDoody.</span>
           <span><b>Total: ${money(j.customerTotalCents)}</b></span>
           ${j.paymentStatus === "paid" ? `<span><b>Paid</b> ${esc(j.paidAt || "")}</span>`
             : !j.providerReady ? "<span>Waiting for the provider to finish payout setup.</span>"
             : `<label class="consent"><input type="checkbox" data-ack="${esc(j.invitationId)}"> I understand the total includes a separately disclosed platform fee.</label>
-               <button type="button" class="button button-dark" data-pay="${esc(j.invitationId)}">Pay ${money(j.customerTotalCents)} (test)</button>`}
+               <button type="button" class="button button-dark" data-pay="${esc(j.invitationId)}">Pay ${money(j.customerTotalCents)}${testMode ? " (test)" : ""}</button>`}
         </div>`).join("");
       body.querySelectorAll("[data-pay]").forEach((b) => b.addEventListener("click", async () => {
         const ack = body.querySelector(`[data-ack="${CSS.escape(b.dataset.pay)}"]`);
@@ -72,7 +76,7 @@
 
   async function init() {
     const params = new URLSearchParams(location.search);
-    const banner = params.get("payment") === "success" ? "Payment received (test mode). It can take a few seconds to show as paid."
+    const banner = params.get("payment") === "success" ? "Payment received. Thank you! It can take a few seconds to show as paid."
       : params.get("payment") === "cancelled" ? "Checkout was cancelled. You have not been charged."
       : params.get("payouts") === "done" ? "Returned from Stripe payout setup." : "";
     if (params.has("payment") || params.has("payouts")) history.replaceState({}, document.title, "/app/");

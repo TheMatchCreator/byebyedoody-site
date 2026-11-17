@@ -1,5 +1,7 @@
 // Stripe helpers for the ByeByeDoody marketplace.
-// TEST MODE ONLY: every call refuses to run unless STRIPE_SECRET_KEY is a test key.
+// Payment mode is set per environment by PAYMENTS_MODE: "live" only on the production
+// site (owner-approved 2026-11-16); every other environment is TEST mode. A live key is
+// refused in test mode and a test key is refused in live mode, and Stripe objects must match.
 // Owner-approved funds flow (2026-11-16): destination charges through Stripe Connect
 // Express. The customer pays the provider's independently set rate plus a separately
 // disclosed platform fee equal to 20% of the customer total; the provider receives
@@ -16,10 +18,17 @@ export function feeBreakdown(providerRateCents) {
   return { providerRateCents: provider, platformFeeCents: total - provider, customerTotalCents: total };
 }
 
-export function stripeTestKey(env) {
-  const key = String(env.STRIPE_SECRET_KEY || "").trim();
-  return /^(sk|rk)_test_[A-Za-z0-9]+$/.test(key) ? key : "";
+export function paymentsMode(env) {
+  return String(env.PAYMENTS_MODE || "").trim() === "live" ? "live" : "test";
 }
+export function stripeKey(env) {
+  const key = String(env.STRIPE_SECRET_KEY || "").trim();
+  const mode = paymentsMode(env);
+  const re = mode === "live" ? /^(sk|rk)_live_[A-Za-z0-9]+$/ : /^(sk|rk)_test_[A-Za-z0-9]+$/;
+  return re.test(key) ? key : "";
+}
+// Kept for older imports: returns the key valid for this environment's mode.
+export const stripeTestKey = stripeKey;
 
 // Encode nested objects the way Stripe's form API expects: a[b][c]=v, a[0]=v.
 function encode(params, prefix = "", out = new URLSearchParams()) {
@@ -34,8 +43,8 @@ function encode(params, prefix = "", out = new URLSearchParams()) {
 }
 
 export async function stripe(env, method, path, params, idempotencyKey) {
-  const key = stripeTestKey(env);
-  if (!key) throw Object.assign(new Error("Stripe test mode is not configured."), { status: 503 });
+  const key = stripeKey(env);
+  if (!key) throw Object.assign(new Error("Payments are not configured."), { status: 503 });
   const init = { method, headers: { Authorization: `Bearer ${key}`, "Stripe-Version": "2024-06-20" } };
   let url = "https://api.stripe.com/v1" + path;
   if (method === "GET") { const q = encode(params).toString(); if (q) url += "?" + q; }
@@ -48,7 +57,7 @@ export async function stripe(env, method, path, params, idempotencyKey) {
     err.status = res.status; err.code = body?.error?.code || body?.error?.type;
     throw err;
   }
-  if (body && body.livemode === true) throw Object.assign(new Error("Live-mode Stripe objects are refused."), { status: 503 });
+  if (body && typeof body.livemode === "boolean" && body.livemode !== (paymentsMode(env) === "live")) throw Object.assign(new Error("Stripe object mode does not match this site's payment mode."), { status: 503 });
   return body;
 }
 
@@ -69,8 +78,8 @@ export async function verifyStripeSignature(payload, header, secret, toleranceSe
 // Stripe API v2 (JSON) — used for Connect Accounts v2, which Stripe requires for new platforms.
 export const STRIPE_V2_VERSION = "2026-10-28.endive";
 export async function stripeV2(env, method, path, body, idempotencyKey) {
-  const key = stripeTestKey(env);
-  if (!key) throw Object.assign(new Error("Stripe test mode is not configured."), { status: 503 });
+  const key = stripeKey(env);
+  if (!key) throw Object.assign(new Error("Payments are not configured."), { status: 503 });
   const headers = { Authorization: `Bearer ${key}`, "Stripe-Version": STRIPE_V2_VERSION };
   if (body) headers["Content-Type"] = "application/json";
   if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
@@ -81,6 +90,6 @@ export async function stripeV2(env, method, path, body, idempotencyKey) {
     err.status = res.status; err.code = data?.error?.code || data?.error?.type;
     throw err;
   }
-  if (data && data.livemode === true) throw Object.assign(new Error("Live-mode Stripe objects are refused."), { status: 503 });
+  if (data && typeof data.livemode === "boolean" && data.livemode !== (paymentsMode(env) === "live")) throw Object.assign(new Error("Stripe object mode does not match this site's payment mode."), { status: 503 });
   return data;
 }

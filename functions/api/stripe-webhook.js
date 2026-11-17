@@ -1,6 +1,6 @@
-// Stripe webhook (TEST MODE). Verifies the signature, ignores live-mode events,
+// Stripe webhook. Verifies the signature, ignores events from the other Stripe mode,
 // and records each paid Checkout Session once in the payment ledger.
-import { verifyStripeSignature } from "../_shared/stripe.js";
+import { verifyStripeSignature, paymentsMode } from "../_shared/stripe.js";
 
 const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
@@ -13,7 +13,7 @@ export async function onRequestPost({ request, env }) {
   }
   let event;
   try { event = JSON.parse(payload); } catch { return reply({ error: "invalid_json" }, 400); }
-  if (event.livemode === true) { console.warn("Stripe webhook: live-mode event ignored (test mode only)"); return reply({ ignored: "livemode" }); }
+  if (event.livemode !== (paymentsMode(env) === "live")) { console.warn("Stripe webhook: event from the other Stripe mode ignored"); return reply({ ignored: "mode_mismatch" }); }
 
   const seen = await env.DB.prepare("INSERT OR IGNORE INTO stripe_events (id, type) VALUES (?, ?)").bind(String(event.id), String(event.type)).run();
   if (!seen.meta?.changes) return reply({ duplicate: true });
@@ -33,7 +33,7 @@ export async function onRequestPost({ request, env }) {
         env.DB.prepare(ledger).bind(crypto.randomUUID(), f.id, "customer_charge", f.customer_total_cents, pi),
         env.DB.prepare(ledger).bind(crypto.randomUUID(), f.id, "platform_fee", f.platform_fee_cents, pi),
         env.DB.prepare(ledger).bind(crypto.randomUUID(), f.id, "provider_transfer", f.provider_rate_cents, pi),
-        env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, NULL, 'referral_paid_test_mode', 'referral', ?)").bind(crypto.randomUUID(), f.id)
+        env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, NULL, ?, 'referral', ?)").bind(crypto.randomUUID(), paymentsMode(env) === "live" ? "referral_paid" : "referral_paid_test_mode", f.id)
       ]);
     }
     return reply({ received: true });

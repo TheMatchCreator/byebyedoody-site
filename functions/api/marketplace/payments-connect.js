@@ -1,8 +1,8 @@
-// Approved providers set up Stripe Connect Express payouts (TEST MODE).
+// Approved providers set up Stripe Connect Express payouts.
 // Stripe hosts onboarding: identity, bank and tax details never reach this site.
 import { requireUser } from "../../_shared/marketplace-auth.js";
 import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
-import { stripe, stripeV2, stripeTestKey } from "../../_shared/stripe.js";
+import { stripe, stripeV2, stripeKey, paymentsMode } from "../../_shared/stripe.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }
@@ -13,7 +13,7 @@ export async function onRequest({ request, env }) {
   if (!["GET", "POST"].includes(request.method)) return json({ error: "Method not allowed." }, 405);
   if (!sameOrigin(request)) return json({ error: "Request origin could not be verified." }, 403);
   if (!env.DB) return json({ error: "Marketplace database is not connected." }, 503);
-  if (!stripeTestKey(env)) return json({ error: "Payments are not set up yet (Stripe test mode)." }, 503);
+  if (!stripeKey(env)) return json({ error: "Payments are not set up yet." }, 503);
   const auth = await requireUser(request, env, ["provider"]);
   if (auth.response) return auth.response;
   const user = auth.user;
@@ -27,7 +27,7 @@ export async function onRequest({ request, env }) {
 
   try {
     if (request.method === "GET") {
-      if (!profile.stripe_account_id) return json({ connected: false, chargesEnabled: false, payoutsEnabled: false, mode: "test" });
+      if (!profile.stripe_account_id) return json({ connected: false, chargesEnabled: false, payoutsEnabled: false, mode: paymentsMode(env) });
       // Accounts v2 status; fall back to the v1 view of the same account if needed.
       let transfers = false, payouts = false, submitted = false;
       try {
@@ -42,7 +42,7 @@ export async function onRequest({ request, env }) {
       }
       await env.DB.prepare("UPDATE provider_profiles SET stripe_charges_enabled = ?, stripe_payouts_enabled = ? WHERE user_id = ?")
         .bind(transfers ? 1 : 0, payouts ? 1 : 0, user.id).run();
-      return json({ connected: true, chargesEnabled: transfers, payoutsEnabled: payouts, detailsSubmitted: submitted, mode: "test" });
+      return json({ connected: true, chargesEnabled: transfers, payoutsEnabled: payouts, detailsSubmitted: submitted, mode: paymentsMode(env) });
     }
 
     const limited = await enforceRateLimit(env, user.id, "provider_stripe_onboarding", 10, 3600);
@@ -73,10 +73,11 @@ export async function onRequest({ request, env }) {
         account_onboarding: { refresh_url: `${origin}/app/?payouts=refresh`, return_url: `${origin}/app/?payouts=done` }
       }
     });
-    return json({ url: link.url, mode: "test" });
+    return json({ url: link.url, mode: paymentsMode(env) });
   } catch (error) {
     console.error("Stripe Connect onboarding failed:", error?.code || error?.status || "error");
-    // Test mode only: show Stripe's own reason so setup problems can be fixed.
-    return json({ error: "Payout setup could not be started (Stripe test mode): " + String(error?.message || "unknown error").slice(0, 300) }, 502);
+    // In test mode show Stripe's own reason so setup problems can be fixed; in live mode keep it generic.
+    if (paymentsMode(env) !== "live") return json({ error: "Payout setup could not be started (Stripe test mode): " + String(error?.message || "unknown error").slice(0, 300) }, 502);
+    return json({ error: "Payout setup could not be started. Please try again or contact ByeByeDoody." }, 502);
   }
 }
