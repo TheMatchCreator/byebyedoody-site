@@ -33,7 +33,7 @@ FOOT = '''</main>
 <footer class="footer"><a class="brand brand-footer" href="/"><span class="brand-mark">B</span><span>ByeBye<span class="brand-accent">Doody</span><small>Yard cleanup made easy</small></span></a><div class="footer-links"><a href="/services.html">Services</a><a href="/areas/">Service areas</a><a href="/work-with-us.html">Work with us</a><a href="/contact.html">Contact</a><a href="/privacy.html">Privacy</a></div><p>© <span data-year></span> ByeByeDoody. All rights reserved.</p></footer><script defer src="/assistant.js?v=1"></script></body></html>
 '''
 def page(slug, city, zips, where):
-    url = f"{SITE}/areas/{slug}.html"
+    url = f"{SITE}/areas/{slug}"  # Cloudflare Pages serves pages without .html
     faq = [
       (f"How much does dog poop cleanup cost in {city}?", f"Independent providers set their own prices. Typical totals in the Sacramento area are about {money(ONE[0])}–{money(ONE[1])} for a one-time cleanup and {money(WEEK[0])}–{money(WEEK[1])} per visit for weekly service, depending on yard size and number of dogs. The total you pay includes ByeByeDoody's platform fee (20% of the total), shown before you pay."),
       (f"How fast can I get a cleanup in {city}?", "As soon as you post a request, approved providers who serve your ZIP code get an instant alert and can send you quotes. You choose the quote you like."),
@@ -62,7 +62,7 @@ links = "".join(f'<li><a class="text-link" href="/areas/{s}.html">{html.escape(c
 (ROOT/"areas"/"index.html").write_text(HEAD.format(desc="ByeByeDoody dog poop cleanup service areas around Sacramento, California.", title="Service Areas | ByeByeDoody", url=f"{SITE}/areas/", ld="") + f'''
 <section class="page-hero"><p class="eyebrow">SERVICE AREAS</p><h1>Dog poop cleanup around Sacramento</h1><p>Pick your city to see prices and how it works, or just <a class="text-link" href="/app/">post a request</a>.</p></section>
 <section class="section"><div class="narrow"><ul class="check-list">{links}</ul></div></section>''' + FOOT)
-pages = ["/", "/services.html", "/quote.html", "/work-with-us.html", "/partners.html", "/contact.html", "/privacy.html", "/marketplace/", "/app/customer-guide.html", "/app/provider-guide.html", "/areas/"] + [f"/areas/{a[0]}.html" for a in AREAS]
+pages = ["/", "/services", "/quote", "/work-with-us", "/partners", "/contact", "/privacy", "/marketplace/", "/app/customer-guide", "/app/provider-guide", "/areas/"] + [f"/areas/{a[0]}" for a in AREAS]
 today = datetime.date.today().isoformat()
 (ROOT/"sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + "".join(f"  <url><loc>{SITE}{p}</loc><lastmod>{today}</lastmod></url>\n" for p in pages) + "</urlset>\n")
 (ROOT/"robots.txt").write_text(f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /app/index.html\n\nSitemap: {SITE}/sitemap.xml\n")
