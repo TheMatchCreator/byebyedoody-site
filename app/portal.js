@@ -103,7 +103,7 @@
         <div class="portal-grid">
           <article class="portal-panel"><h2>Privacy request</h2><p>Submit an access, correction, deletion or location-revocation request. Identity checks and lawful retention requirements may apply.</p><form data-form="privacy"><label>Request type<select name="requestType" required><option value="access">Access my information</option><option value="correction">Correct my information</option><option value="deletion">Delete my information</option><option value="location_revocation">Revoke location consent</option></select></label><button class="button button-dark">Submit privacy request</button></form><button class="button button-outline-dark" type="button" data-action="load-privacy">View my privacy requests</button><div data-privacy class="portal-results"></div></article>
           <article class="portal-panel"><h2>Report a service issue</h2><p>Available to customers and providers connected to a referral.</p><form data-form="issue"><label>Referral ID<input name="referralId" required maxlength="80"></label><label>Issue type<select name="issueType"><option value="service_quality">Service quality</option><option value="property_access">Property access</option><option value="animal_safety">Animal safety</option><option value="payment">Payment</option><option value="late_or_missed">Late or missed service</option><option value="other">Other</option></select></label><label>Details<textarea name="description" required minlength="10" maxlength="2000"></textarea></label><button class="button button-dark">Submit issue</button></form></article>
-          <article class="portal-panel portal-wide"><h2>Draft terms and acknowledgements</h2><p>Read the role-specific draft terms. These are not final contracts and acknowledgement records receipt only.</p><button type="button" class="button button-outline-dark" data-action="load-agreements">Load my draft terms</button><div data-agreements class="portal-results"></div></article>
+          <article class="portal-panel portal-wide"><h2>Delete my account</h2><p>Permanently delete your ByeByeDoody account and sign-in. Your address, notes, ZIP codes, alerts and saved settings are removed. Records of jobs that were paid are kept without your contact details, as required for payments and taxes. This can't be undone.</p><label>Type DELETE to confirm<input data-del-confirm autocomplete="off" maxlength="10"></label><button type="button" class="button button-outline-dark" data-del-account>Delete my account</button><p class="portal-muted" data-del-msg role="status"></p></article><article class="portal-panel portal-wide"><h2>Draft terms and acknowledgements</h2><p>Read the role-specific draft terms. These are not final contracts and acknowledgement records receipt only.</p><button type="button" class="button button-outline-dark" data-action="load-agreements">Load my draft terms</button><div data-agreements class="portal-results"></div></article>
           <article class="portal-panel portal-wide"><h2>In-app notifications</h2><p>Your alerts: new jobs near you, quotes, invitations and job progress.</p><button type="button" class="button button-outline-dark" data-action="load-notifications">Load notifications</button><div data-notifications class="portal-results"></div></article>
         </div>`,
       admin: () => `
@@ -190,6 +190,19 @@
         st.textContent = r.autoQuote.enabled ? "Saved. Auto-quote is ON: new jobs in your ZIP codes get your quote instantly." : "Saved. Auto-quote is off.";
       } catch (e) { st.textContent = e.message; }
       aqSave.disabled = false;
+    });
+    const del = pane.querySelector("[data-del-account]");
+    if (del) del.addEventListener("click", async () => {
+      const box = del.closest("article"), m = box.querySelector("[data-del-msg]");
+      if (box.querySelector("[data-del-confirm]").value.trim() !== "DELETE") { m.textContent = "Type DELETE in the box first."; return; }
+      if (!window.confirm("Permanently delete your ByeByeDoody account? This can't be undone.")) return;
+      del.disabled = true; m.textContent = "Deleting…";
+      try {
+        const r = await api("/api/marketplace/delete-account", { method: "POST", body: JSON.stringify({ confirm: "DELETE" }) });
+        m.textContent = r.message;
+        try { localStorage.clear(); sessionStorage.clear(); } catch {}
+        setTimeout(() => { window.BBDOODY_AUTH.logout(); }, 2500);
+      } catch (e) { m.textContent = e.message; del.disabled = false; }
     });
     const join = pane.querySelector("[data-join-provider]");
     if (join) join.addEventListener("click", () => { join.disabled = true; window.BBDOODY_AUTH.joinAsProvider().catch((e) => { notice(e.message, true); join.disabled = false; }); });

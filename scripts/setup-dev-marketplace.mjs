@@ -122,6 +122,13 @@ const existingVars = preview.env_vars || {};
 console.log(`Existing ${TARGET} settings (names only): variables [${Object.keys(existingVars).sort().join(", ")}], D1 bindings [${Object.entries(preview.d1_databases || {}).map(([k, v]) => k + "->" + (v.id === undefined ? "?" : v.id.slice(0, 8))).join(", ")}]`);
 const envVars = {};
 for (const [k, v] of Object.entries(AUTH)) envVars[k] = { type: "plain_text", value: v };
+// Account self-deletion: Auth0 Machine-to-Machine app allowed only to delete users.
+if (process.env.AUTH0_MGMT_CLIENT_ID) envVars.AUTH0_MGMT_CLIENT_ID = { type: "plain_text", value: process.env.AUTH0_MGMT_CLIENT_ID };
+{
+  const mg = String(process.env.AUTH0_MGMT_CLIENT_SECRET || "").trim();
+  if (mg) { console.log(`::add-mask::${mg}`); envVars.AUTH0_MGMT_CLIENT_SECRET = { type: "secret_text", value: mg }; console.log("Auth0 account-deletion key: set."); }
+  else console.log("Auth0 account-deletion key: not provided (sign-ins of deleted accounts will need manual removal).");
+}
 if (!existingVars.DATA_ENCRYPTION_KEY) {
   const key = randomBytes(32).toString("base64");
   console.log(`::add-mask::${key}`);

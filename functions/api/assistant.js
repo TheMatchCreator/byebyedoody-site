@@ -27,6 +27,7 @@ REPEAT & REFERRALS:
 - "Give $10, get $10": every customer has a share link in their account. A friend who signs up with it gets $10 off their first cleanup; the sharer gets $10 credit when the friend's first job is paid. Credits come off ByeByeDoody's platform fee, so pros still get their full rate.
 
 ACCOUNT HELP:
+- Delete account: My account → Privacy & support → "Delete my account", type DELETE and confirm. It removes the account right away (paid job records are kept without contact details).
 - Forgot password: go to www.byebyedoody.com/app (or "My account" in the menu), click "Forgot your password?", type your email, and click "Email me a reset link". The link comes from no-reply@byebyedoody.com (check spam). Or on the sign-in screen click "Log in" then "Reset password".
 - Change password while signed in: click "Change my password" at the top of the account page.
 - Accounts made with "Continue with Google" have no ByeByeDoody password; just click Continue with Google again.
