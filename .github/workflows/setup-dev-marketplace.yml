@@ -15,6 +15,7 @@ on:
       - "ops/run-dev-check"
       - "ops/run-dev-roles"
       - "ops/run-dev-stripe"
+      - "ops/run-domain"
 
 permissions:
   contents: read
@@ -42,6 +43,11 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: node scripts/dev-set-roles.mjs
+      - name: Connect byebyedoody.com
+        if: contains(github.event.head_commit.message, '[domain]')
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/connect-domain.mjs
       - name: Read-only database check
         if: always()
         env:
