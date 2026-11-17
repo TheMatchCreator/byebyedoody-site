@@ -27,6 +27,7 @@
   // The server creates it only from the signed token's customer role (never from this request).
   async function ensureCustomerAccount(c) {
     const claims = await c.getIdTokenClaims();
+    if (claims && claims.email_verified === false) return "";
     const role = claims && claims[ROLE_CLAIM];
     if (role && role !== "customer") return "";
     try { if (sessionStorage.getItem("bbd_account_checked") === "yes") return ""; } catch {}
@@ -77,7 +78,8 @@
         let extra = "";
         try { extra = await ensureCustomerAccount(c); } catch (e) { extra = " (Account setup could not be completed: " + ((e && e.message) || "unknown error") + ")"; }
         justSignedIn = false;
-        setStatus("Signed in" + (user && user.email ? " as " + user.email : "") + "." + extra);
+        const unverified = user && user.email_verified === false;
+        setStatus("Signed in" + (user && user.email ? " as " + user.email : "") + "." + (unverified ? " ⚠️ One more step: open the email we sent you (check spam), click the confirm link, then sign out and back in." : extra));
       } else {
         setStatus("You are not signed in.");
       }
