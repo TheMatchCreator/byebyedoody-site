@@ -8,7 +8,8 @@ export async function runAI(env, messages, { models = CHAT_MODELS, maxTokens = 4
   for (const model of models) {
     try {
       const out = await env.AI.run(model, { messages, max_tokens: maxTokens, temperature });
-      const text = typeof out === "string" ? out : (out && (out.response ?? out.result?.response ?? out.choices?.[0]?.message?.content));
+      let text = typeof out === "string" ? out : (out && (out.response ?? out.result?.response ?? out.choices?.[0]?.message?.content));
+      if (text && typeof text === "object") text = JSON.stringify(text);
       if (typeof text === "string" && text.trim()) return { text: text.trim(), model };
     } catch (e) { console.error("Workers AI call failed:", model, e?.message || "error"); }
   }
@@ -35,7 +36,7 @@ Reply with JSON only: {"price": <whole dollars within the range>, "reason": "<on
   const ai = await runAI(env, [
     { role: "system", content: "You help independent service providers price jobs fairly. Always answer with compact JSON only." },
     { role: "user", content: prompt }
-  ], { models: FAST_MODELS, maxTokens: 120, temperature: 0.2 });
+  ], { models: CHAT_MODELS, maxTokens: 150, temperature: 0.2 });
   let price = g.midCents / 100, reason = "Based on typical Sacramento-area prices for this yard size and number of dogs.", source = "guide";
   if (ai) {
     try {
