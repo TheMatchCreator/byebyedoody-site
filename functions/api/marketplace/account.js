@@ -15,6 +15,10 @@ export async function onRequest({ request, env }) {
   const limited = await enforceRateLimit(env, user.id, "customer_account_bootstrap", 2, 86400);
   if (limited) return limited;
   try {
+    // A previously closed account with nothing left in it starts over as a fresh customer account.
+    await env.DB.prepare(
+      "UPDATE app_users SET role = 'customer', account_status = 'active', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND account_status = 'closed' AND NOT EXISTS (SELECT 1 FROM provider_profiles WHERE user_id = ?) AND NOT EXISTS (SELECT 1 FROM customer_profiles WHERE user_id = ?)"
+    ).bind(user.id, user.id, user.id).run();
     await env.DB.prepare(
       "INSERT OR IGNORE INTO app_users (id, role, email_verified_at, account_status) VALUES (?, 'customer', CURRENT_TIMESTAMP, 'active')"
     ).bind(user.id).run();

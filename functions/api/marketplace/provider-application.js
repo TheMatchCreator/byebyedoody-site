@@ -37,6 +37,10 @@ export async function onRequest({ request, env }) {
     await env.DB.prepare(
       "INSERT OR IGNORE INTO app_users (id, role, email_verified_at, account_status) VALUES (?, 'provider', CURRENT_TIMESTAMP, 'pending')"
     ).bind(user.id).run();
+    // A previously closed account with nothing left in it starts over as a new provider applicant.
+    await env.DB.prepare(
+      "UPDATE app_users SET role = 'provider', account_status = 'pending', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND account_status = 'closed' AND NOT EXISTS (SELECT 1 FROM provider_profiles WHERE user_id = ?) AND NOT EXISTS (SELECT 1 FROM service_requests WHERE customer_id = ?)"
+    ).bind(user.id, user.id, user.id).run();
     // A person who signed up as a customer and then chose "Join as a provider" (their signed token
     // now says provider) is switched over, as long as they have never posted a service request.
     await env.DB.prepare(
