@@ -1,6 +1,6 @@
 -- ByeByeDoody 0009: provider job alerts, AI price suggestions on quotes, job progress for
 -- permission-based location sharing (only while a provider chooses to share during a paid job).
--- Location points reuse location_consents / location_events from 0001 and are kept 7 days.
+-- Consent records use location_consents from 0001; points live in job_location_points (0010).
 
 ALTER TABLE provider_profiles ADD COLUMN job_alerts_enabled INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE provider_profiles ADD COLUMN alert_email_ciphertext TEXT;

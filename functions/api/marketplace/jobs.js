@@ -1,6 +1,6 @@
 // "My jobs": paid referrals from start to finish, with location sharing ONLY while the provider
 // chooses to share during a job ("On my way" until "Job done" or "Stop sharing").
-// Points are kept 7 days, then deleted. Customers see only the latest point while sharing is on.
+// Points (table job_location_points) are kept 7 days, then deleted. Customers see only the latest point while sharing is on.
 import { requireUser } from "../../_shared/marketplace-auth.js";
 import { json, sameOrigin, activeAccount, readJson } from "../../_shared/http.js";
 import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
@@ -29,7 +29,7 @@ async function handle({ request, env }) {
   const user = auth.user;
   if (!(await activeAccount(env, user))) return json({ error: "Your account is not active for marketplace access." }, 403);
   // Retention: delete location points older than 7 days.
-  await env.DB.prepare("DELETE FROM location_events WHERE retention_until < ?").bind(new Date().toISOString()).run().catch(() => {});
+  await env.DB.prepare("DELETE FROM job_location_points WHERE retention_until < ?").bind(new Date().toISOString()).run().catch(() => {});
 
   if (request.method === "GET") {
     const col = user.role === "provider" ? "f.provider_id" : "f.customer_id";
@@ -52,7 +52,7 @@ async function handle({ request, env }) {
         try { job.address = await decryptPrivate(j.service_address_ciphertext, env); job.notes = j.scope_notes_ciphertext ? await decryptPrivate(j.scope_notes_ciphertext, env) : ""; }
         catch { job.address = "(address unavailable — contact support)"; }
       } else if (job.sharingLocation) {
-        const pt = await env.DB.prepare("SELECT latitude, longitude, accuracy_m, captured_at FROM location_events WHERE referral_id = ? ORDER BY captured_at DESC LIMIT 1").bind(j.id).first();
+        const pt = await env.DB.prepare("SELECT latitude, longitude, accuracy_m, captured_at FROM job_location_points WHERE referral_id = ? ORDER BY captured_at DESC LIMIT 1").bind(j.id).first();
         if (pt && Date.now() - Date.parse(pt.captured_at) < 15 * 60000) job.location = { lat: pt.latitude, lng: pt.longitude, accuracyM: pt.accuracy_m, at: pt.captured_at };
       }
       jobs.push(job);
@@ -91,7 +91,7 @@ async function handle({ request, env }) {
     const lat = Number(input.lat), lng = Number(input.lng), acc = Number(input.accuracy);
     if (!(lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)) return json({ error: "Invalid location." }, 400);
     const now = new Date();
-    await env.DB.prepare("INSERT INTO location_events (id, user_id, referral_id, latitude, longitude, accuracy_m, captured_at, retention_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+    await env.DB.prepare("INSERT INTO job_location_points (id, provider_id, referral_id, latitude, longitude, accuracy_m, captured_at, retention_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
       .bind(crypto.randomUUID(), user.id, job.id, Math.round(lat * 1e5) / 1e5, Math.round(lng * 1e5) / 1e5, Number.isFinite(acc) ? Math.min(acc, 100000) : null, now.toISOString(), new Date(now.getTime() + 7 * 86400000).toISOString()).run();
     return json({ ok: true });
   }
