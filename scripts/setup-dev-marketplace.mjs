@@ -17,7 +17,10 @@ const RAW_TOKEN = String(process.env.CLOUDFLARE_API_TOKEN || "");
 const TOKEN = (RAW_TOKEN.match(/[A-Za-z0-9_-]{30,}/g) || []).sort((a, b) => b.length - a.length)[0] || "";
 console.log(`Key check: ${RAW_TOKEN.length} characters saved, ${TOKEN.length}-character key found` + (RAW_TOKEN.trim() !== TOKEN ? " (extra text around it was ignored)" : "") + ".");
 const PROJECT = "byebyedoody-site";
-const DB_NAME = "byebyedoody-marketplace-dev";
+const TARGET = process.env.BBD_TARGET === "production" ? "production" : "preview";
+const DB_NAME = TARGET === "production" ? "byebyedoody-marketplace-prod" : "byebyedoody-marketplace-dev";
+const SITE = TARGET === "production" ? "https://byebyedoody-site.pages.dev" : "https://marketplace-auth.byebyedoody-site.pages.dev";
+console.log(`Target: ${TARGET} (database ${DB_NAME}, site ${SITE}). Payments stay in Stripe TEST mode.`);
 const AUTH0_DOMAIN = "dev-67fy3ittqngxqy5v.us.auth0.com";
 const AUTH = {
   AUTH_ISSUER: `https://${AUTH0_DOMAIN}/`,
@@ -106,29 +109,36 @@ for (const t of ["app_users", "service_requests", "notification_events", "audit_
   if (!(await tableExists(t))) throw new Error(`Expected table ${t} is missing after migrations.`);
 }
 console.log("Database schema is complete.");
+if (TARGET === "production") {
+  // Owner-approved administrator: byebyedoody123@aol.com (Auth0 user id below). No other accounts are pre-created.
+  const OWNER = "auth0|6afb8fb02e951191574d77ab";
+  await query("INSERT INTO app_users (id, role, email_verified_at, account_status) VALUES (?, 'admin', CURRENT_TIMESTAMP, 'active') ON CONFLICT(id) DO UPDATE SET role = 'admin', account_status = 'active'", [OWNER]);
+  console.log("Owner administrator account is active in the production database.");
+}
 
 // 4. Preview environment settings
-const preview = (project.deployment_configs && project.deployment_configs.preview) || {};
+const preview = (project.deployment_configs && project.deployment_configs[TARGET]) || {};
 const existingVars = preview.env_vars || {};
+console.log(`Existing ${TARGET} settings (names only): variables [${Object.keys(existingVars).sort().join(", ")}], D1 bindings [${Object.entries(preview.d1_databases || {}).map(([k, v]) => k + "->" + (v.id === undefined ? "?" : v.id.slice(0, 8))).join(", ")}]`);
 const envVars = {};
 for (const [k, v] of Object.entries(AUTH)) envVars[k] = { type: "plain_text", value: v };
 if (!existingVars.DATA_ENCRYPTION_KEY) {
   const key = randomBytes(32).toString("base64");
   console.log(`::add-mask::${key}`);
   envVars.DATA_ENCRYPTION_KEY = { type: "secret_text", value: key };
-  console.log("Generated a new DATA_ENCRYPTION_KEY for the preview environment (value not shown).");
+  console.log(`Generated a new DATA_ENCRYPTION_KEY for the ${TARGET} environment (value not shown).`);
 } else {
-  console.log("DATA_ENCRYPTION_KEY already set for preview; leaving it unchanged.");
+  console.log(`DATA_ENCRYPTION_KEY already set for ${TARGET}; leaving it unchanged.`);
 }
 await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`, {
   method: "PATCH",
-  body: JSON.stringify({ deployment_configs: { preview: { env_vars: envVars, d1_databases: { DB: { id: dbId } } } } })
+  body: JSON.stringify({ deployment_configs: { [TARGET]: { env_vars: envVars, d1_databases: { DB: { id: dbId } } } } })
 });
-const after = (await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`)).deployment_configs.preview;
+const after = (await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`)).deployment_configs[TARGET];
 const lost = Object.keys(existingVars).filter((k) => !(after.env_vars || {})[k]);
 if (lost.length) throw new Error(`Preview settings lost these variables, re-add them in Cloudflare: ${lost.join(", ")}`);
-console.log("Preview variables now set: " + Object.keys(after.env_vars || {}).sort().join(", "));
-console.log("Preview D1 binding DB -> " + DB_NAME + (after.d1_databases && after.d1_databases.DB ? " (connected)" : " (MISSING)"));
+console.log(`${TARGET} variables now set: ` + + Object.keys(after.env_vars || {}).sort().join(", "));
+console.log(`${TARGET} D1 binding DB -> ` + + DB_NAME + (after.d1_databases && after.d1_databases.DB ? " (connected)" : " (MISSING)"));
 
 // 5. Stripe TEST MODE (only when the STRIPE_SECRET_KEY repository secret is present)
 const RAW_STRIPE = String(process.env.STRIPE_SECRET_KEY || "");
@@ -154,15 +164,15 @@ if (RAW_STRIPE.trim()) {
       await st("DELETE", `/webhook_endpoints/${h.id}`);
       console.log("Removed the test webhook that was created on the wrong Stripe account.");
     }
-    await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`, { method: "PATCH", body: JSON.stringify({ deployment_configs: { preview: { env_vars: { STRIPE_SECRET_KEY: null, STRIPE_WEBHOOK_SECRET: null } } } }) });
+    await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`, { method: "PATCH", body: JSON.stringify({ deployment_configs: { [TARGET]: { env_vars: { STRIPE_SECRET_KEY: null, STRIPE_WEBHOOK_SECRET: null } } } }) });
     console.log("Removed the wrong Stripe settings from the test site.");
     throw new Error(`The STRIPE_SECRET_KEY secret is from Stripe account ${acct.id}, not the ByeByeDoody sandbox ${EXPECTED}. Replace it with the ByeByeDoody sandbox test key.`);
   }
   try { await st("GET", "/accounts?limit=1"); console.log("Stripe Connect: enabled."); }
   catch (e) { console.log("Stripe Connect: NOT enabled yet -> in the Stripe dashboard (test mode) open Connect and click Get started. " + e.message.slice(0, 160)); }
 
-  const hookUrl = "https://marketplace-auth.byebyedoody-site.pages.dev/api/stripe-webhook";
-  const cur = (await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`)).deployment_configs.preview.env_vars || {};
+  const hookUrl = `${SITE}/api/stripe-webhook`;
+  const cur = (await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`)).deployment_configs[TARGET].env_vars || {};
   const hooks = (await st("GET", "/webhook_endpoints?limit=100")).data || [];
   const mine = hooks.filter((h) => h.url === hookUrl);
   const stripeVars = { STRIPE_SECRET_KEY: { type: "secret_text", value: sk } };
@@ -172,7 +182,7 @@ if (RAW_STRIPE.trim()) {
       url: hookUrl,
       "enabled_events[0]": "checkout.session.completed",
       "enabled_events[1]": "checkout.session.async_payment_succeeded",
-      description: "ByeByeDoody test site (marketplace-auth preview)"
+      description: `ByeByeDoody ${TARGET} site (Stripe test mode)`
     });
     console.log(`::add-mask::${hook.secret}`);
     stripeVars.STRIPE_WEBHOOK_SECRET = { type: "secret_text", value: hook.secret };
@@ -180,12 +190,12 @@ if (RAW_STRIPE.trim()) {
   } else {
     console.log("Stripe test webhook already set up; leaving it unchanged.");
   }
-  await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`, { method: "PATCH", body: JSON.stringify({ deployment_configs: { preview: { env_vars: stripeVars } } }) });
-  const now = (await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`)).deployment_configs.preview.env_vars || {};
+  await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`, { method: "PATCH", body: JSON.stringify({ deployment_configs: { [TARGET]: { env_vars: stripeVars } } }) });
+  const now = (await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`)).deployment_configs[TARGET].env_vars || {};
   const lostAfter = Object.keys(cur).filter((k) => !now[k]);
   if (lostAfter.length) throw new Error("Preview settings lost: " + lostAfter.join(", "));
-  console.log("Preview variables now set: " + Object.keys(now).sort().join(", "));
+  console.log(`${TARGET} variables now set: ` + + Object.keys(now).sort().join(", "));
 } else {
   console.log("Stripe: STRIPE_SECRET_KEY repository secret not set yet; skipping payments setup.");
 }
-console.log("Done. Push a new commit to a preview branch so the next deployment picks up these settings.");
+console.log(`Done. Redeploy the ${TARGET} site so it picks up these settings.`);

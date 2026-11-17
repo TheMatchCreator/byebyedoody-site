@@ -1,0 +1,32 @@
+name: Set up ByeByeDoody live marketplace (payments in Stripe test mode)
+
+# Owner-approved 2026-11-16: marketplace on the live site with payments kept in TEST mode.
+# Creates/uses the separate production database and sets the Pages PRODUCTION environment.
+on:
+  push:
+    branches: [marketplace-auth]
+    paths:
+      - "ops/run-prod-setup"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: setup-prod-marketplace
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Set up production database and live-site settings
+        env:
+          BBD_TARGET: production
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          STRIPE_SECRET_KEY: ${{ secrets.BYEBYEDOODY_STRIPE_KEY }}
+        run: node scripts/setup-dev-marketplace.mjs
