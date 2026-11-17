@@ -59,10 +59,7 @@ export async function onRequest({ request, env }) {
     const now = new Date().toISOString();
     const start = job.requested_window_start || now;
     const end = job.requested_window_end || new Date(Date.now() + 14 * 86400000).toISOString();
-    const availability = await env.DB.prepare(
-      "SELECT id FROM provider_availability WHERE provider_id = ? AND status = 'available' AND starts_at <= ? AND ends_at >= ? LIMIT 1"
-    ).bind(user.id, end, start).first();
-    if (!availability) return json({ error: "Add an availability window that overlaps the requested service period before quoting." }, 409);
+    // Sending a quote is itself the provider's own choice of when to work; availability windows are optional.
     const existing = await env.DB.prepare(
       "SELECT id FROM provider_quotes WHERE request_id = ? AND provider_id = ? AND status IN ('offered','accepted_by_customer') LIMIT 1"
     ).bind(requestId, user.id).first();
@@ -78,9 +75,8 @@ export async function onRequest({ request, env }) {
          WHERE r.id = ? AND r.matching_consent_at IS NOT NULL
            AND r.status IN ('submitted','open_for_referral','quoted')
            AND EXISTS (SELECT 1 FROM provider_service_areas z WHERE z.provider_id = ? AND z.zip_code = r.service_zip AND z.active = 1)
-           AND EXISTS (SELECT 1 FROM provider_availability a WHERE a.provider_id = ? AND a.status = 'available' AND a.starts_at <= ? AND a.ends_at >= ?)
            AND EXISTS (SELECT 1 FROM provider_profiles p JOIN app_users u ON u.id = p.user_id WHERE p.user_id = ? AND p.onboarding_status = 'approved' AND u.account_status = 'active')`
-      ).bind(id, user.id, rate, terms, requestId, user.id, user.id, end, start, user.id),
+      ).bind(id, user.id, rate, terms, requestId, user.id, user.id),
       env.DB.prepare(
         "UPDATE service_requests SET status = 'quoted' WHERE id = ? AND status IN ('submitted','open_for_referral','quoted') AND EXISTS (SELECT 1 FROM provider_quotes WHERE id = ?)"
       ).bind(requestId, id),
@@ -89,7 +85,7 @@ export async function onRequest({ request, env }) {
       ).bind(crypto.randomUUID(), user.id, id)
     ]);
     if (!writes[0]?.meta?.changes) {
-      return json({ error: "This request closed or your service area/availability changed before the quote could be saved." }, 409);
+      return json({ error: "This request closed or your service area changed before the quote could be saved." }, 409);
     }
     return json({ ok: true, quote: { id, requestId, providerRateCents: rate, currency: "usd", terms, status: "offered" }, message: "Your independently set quote has been sent for customer review. No booking or payment has been created." }, 201);
   } catch (error) {
