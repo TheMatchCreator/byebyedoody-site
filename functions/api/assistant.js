@@ -19,6 +19,7 @@ How it works for PROVIDERS (independent businesses, not employees):
 1. Sign in, open "Provider tools", fill in the independent provider application with your business name and service ZIP codes. ByeByeDoody reviews it.
 2. After approval: add service ZIP codes and availability, turn on "Email job alerts", and set up payouts with Stripe ("Set up payouts").
 3. New jobs in your ZIPs arrive as alerts. Open "Find requests in my ZIP areas", use "Suggest a price with AI" if you want, and send your own quote. You choose your price, your hours, and which jobs to take; you can skip any job with no penalty.
+Tip: turn on "AI auto-quote" in Provider tools and AI will instantly send your quote (at the AI price, adjusted up or down as you choose) on every new job in your ZIP codes, so you win jobs first. You can turn it off or withdraw any quote anytime.
 4. After the customer pays you see the address in "My jobs". Tap "On my way" (location sharing is optional and only during that job), "Arrived", then "Job done". You receive your full quoted rate through Stripe.
 
 ACCOUNT HELP:

@@ -13,7 +13,7 @@ export async function onRequest({ request, env }) {
   const user = auth.user;
   // Applicants (pending accounts) may see and set alerts; alerts are only sent once approved.
   const account = await env.DB.prepare("SELECT role, account_status FROM app_users WHERE id = ?").bind(user.id).first();
-  const profile = await env.DB.prepare("SELECT onboarding_status, job_alerts_enabled FROM provider_profiles WHERE user_id = ?").bind(user.id).first();
+  const profile = await env.DB.prepare("SELECT onboarding_status, job_alerts_enabled, auto_quote_enabled, auto_quote_adjust_pct, auto_quote_terms FROM provider_profiles WHERE user_id = ?").bind(user.id).first();
   if (!account || !profile) {
     if (request.method === "GET") return json({ applied: false, approved: false, emailAlerts: false, emailAvailable: emailReady(env), zips: [] });
     return json({ error: "Fill in the provider application below first." }, 409);
@@ -22,10 +22,21 @@ export async function onRequest({ request, env }) {
   const zips = ((await env.DB.prepare("SELECT zip_code FROM provider_service_areas WHERE provider_id = ? AND active = 1 ORDER BY zip_code").bind(user.id).all()).results || []).map((r) => r.zip_code);
 
   if (request.method === "GET") {
-    return json({ applied: true, status: profile.onboarding_status, approved: profile.onboarding_status === "approved", emailAlerts: Boolean(profile.job_alerts_enabled), emailAvailable: emailReady(env), zips });
+    return json({ applied: true, status: profile.onboarding_status, approved: profile.onboarding_status === "approved", emailAlerts: Boolean(profile.job_alerts_enabled), emailAvailable: emailReady(env), zips, autoQuote: { enabled: Boolean(profile.auto_quote_enabled), adjustPct: Number(profile.auto_quote_adjust_pct) || 0, terms: profile.auto_quote_terms || "" } });
   }
   if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
   let input; try { input = await readJson(request); } catch { return json({ error: "Submit a valid setting." }, 400); }
+  if (input.autoQuote && typeof input.autoQuote === "object") {
+    const aq = input.autoQuote;
+    const on = aq.enabled === true;
+    const pct = Math.max(-30, Math.min(50, Math.round(Number(aq.adjustPct) || 0)));
+    const terms = typeof aq.terms === "string" ? aq.terms.trim().slice(0, 600) : "";
+    await env.DB.batch([
+      env.DB.prepare("UPDATE provider_profiles SET auto_quote_enabled = ?, auto_quote_adjust_pct = ?, auto_quote_terms = ?, auto_quote_updated_at = CURRENT_TIMESTAMP WHERE user_id = ?").bind(on ? 1 : 0, pct, terms || null, user.id),
+      env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, ?, 'provider_profile', ?)").bind(crypto.randomUUID(), user.id, on ? "provider_auto_quote_on" : "provider_auto_quote_off", user.id)
+    ]);
+    return json({ ok: true, autoQuote: { enabled: on, adjustPct: pct, terms } });
+  }
   const enabled = input.emailAlerts === true;
   if (enabled) {
     if (!user.email) return json({ error: "Your sign-in does not include an email address." }, 400);

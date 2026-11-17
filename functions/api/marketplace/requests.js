@@ -110,7 +110,7 @@ export async function onRequest({ request, env, waitUntil }) {
         SELECT lower(hex(randomblob(16))), id, 'in_app', 'admin_new_customer_request', 'queued'
         FROM app_users WHERE role = 'admin' AND account_status = 'active'`)
     ]);
-    const alerts = alertProvidersForRequest(env, { zip, serviceType, dogCount: dogs, yardSize }, new URL(request.url).origin)
+    const alerts = alertProvidersForRequest(env, { id, zip, serviceType, dogCount: dogs, yardSize }, new URL(request.url).origin)
       .catch((e) => console.error("Job alerts failed:", e?.message || "error"));
     if (typeof waitUntil === "function") waitUntil(alerts); else await alerts;
     const g = priceGuide({ serviceType, dogCount: dogs, yardSize });

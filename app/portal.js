@@ -90,6 +90,11 @@
         <div class="portal-grid">
           ${state.role === "customer" ? '<article class="portal-panel portal-wide"><h2>Want to earn money doing cleanups?</h2><p>Switch this account to an independent provider account in one click, then fill in the short application below. You can still book cleanups for yourself with a separate account.</p><button type="button" class="button button-dark" data-join-provider>Join as a provider</button></article>' : ""}
           <article class="portal-panel portal-wide"><h2>⚡ Instant job alerts</h2><p>Get an email the moment a customer in your service ZIP codes posts a job. Alerts are opportunities only: you choose which jobs to quote, and you can skip any job with no penalty.</p><label class="portal-check"><input type="checkbox" data-alerts-toggle> Email me new jobs in my ZIP codes</label><p class="portal-muted" data-alerts-status>Checking…</p></article>
+          <article class="portal-panel portal-wide" data-autoquote-panel hidden><h2>🤖 AI auto-quote</h2><p>Win jobs first, even while you're busy. When a new job appears in your ZIP codes, AI instantly sends your quote at a fair local price, adjusted the way you choose. You stay in control: switch it off anytime, withdraw any quote in Quotes, and you still accept or decline every job.</p>
+            <label class="portal-check"><input type="checkbox" data-aq-on> Send my quote automatically on new jobs</label>
+            <label>My price compared to the AI price<select data-aq-pct><option value="-20">20% lower (win more jobs)</option><option value="-10">10% lower</option><option value="0" selected>Same as AI price</option><option value="10">10% higher</option><option value="20">20% higher</option><option value="30">30% higher</option></select></label>
+            <label>Note sent with my quotes (optional)<textarea data-aq-terms maxlength="600" placeholder="Example: Includes bagging and haul-away. I can usually come within 2 days."></textarea></label>
+            <button type="button" class="button button-dark" data-aq-save>Save auto-quote settings</button><p class="portal-muted" data-aq-status></p></article>
           <article class="portal-panel portal-wide"><h2>Independent provider application</h2><p>Complete this application only if you operate your own independent business. Submission does not guarantee approval or work referrals. Required statements must reflect your real business practices.</p><form data-form="provider-application"><label>Independent business name<input name="businessName" required minlength="2" maxlength="120"></label><label>Service ZIP codes (comma-separated)<input name="zipCodes" placeholder="95823, 95824" required></label><label class="portal-check"><input type="checkbox" name="businessRegistration" required> I maintain the business registration required for my services.</label><label class="portal-check"><input type="checkbox" name="ownTools" required> I supply and maintain my own tools and equipment.</label><label class="portal-check"><input type="checkbox" name="independentClients" required> I am free to serve other customers and maintain independent clients.</label><label class="portal-check"><input type="checkbox" name="setsRates" required> I independently set or negotiate my own service rates.</label><label class="portal-check"><input type="checkbox" name="setsHours" required> I choose my own working hours and availability.</label><label class="portal-check"><input type="checkbox" name="freeChoice" required> I may freely accept or reject each referral without penalty.</label><button class="button button-dark">Submit provider application</button></form></article>
           <article class="portal-panel portal-wide"><h2>Opt-in service opportunities</h2><p>See only requests where the customer agreed to ZIP-based matching. You will not see customer street addresses or private notes before a separate lawful referral process.</p><button type="button" class="button button-dark" data-action="load-requests">Find requests in my ZIP areas</button><div data-results class="portal-results"></div></article><article class="portal-panel"><h2>Service ZIP codes</h2><p>Approved providers can choose up to 20 service ZIP codes.</p><form data-form="area"><label>Five-digit ZIP code<input name="zip" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required></label><button class="button button-dark">Add ZIP code</button></form><button type="button" class="button button-outline-dark" data-action="load-areas">Load my ZIP codes</button><div data-areas class="portal-results"></div></article>
           <article class="portal-panel"><h2>Availability</h2><p>Choose future UTC times. You may withdraw a window at any time; adding availability does not commit you to a referral.</p><form data-form="availability"><label>Starts (UTC)<input name="startsAt" type="datetime-local" required></label><label>Ends (UTC)<input name="endsAt" type="datetime-local" required></label><button class="button button-dark">Add availability</button></form><button type="button" class="button button-outline-dark" data-action="load-availability">Load availability</button><div data-availability class="portal-results"></div></article>
@@ -176,6 +181,16 @@
       } catch (e) { out.textContent = e.message; }
       estBtn.disabled = false;
     });
+    const aqSave = pane.querySelector("[data-aq-save]");
+    if (aqSave) aqSave.addEventListener("click", async () => {
+      const panel = aqSave.closest("article"); const st = panel.querySelector("[data-aq-status]");
+      aqSave.disabled = true; st.textContent = "Saving…";
+      try {
+        const r = await api("/api/marketplace/job-alerts", { method: "POST", body: JSON.stringify({ autoQuote: { enabled: panel.querySelector("[data-aq-on]").checked, adjustPct: Number(panel.querySelector("[data-aq-pct]").value), terms: panel.querySelector("[data-aq-terms]").value } }) });
+        st.textContent = r.autoQuote.enabled ? "Saved. Auto-quote is ON: new jobs in your ZIP codes get your quote instantly." : "Saved. Auto-quote is off.";
+      } catch (e) { st.textContent = e.message; }
+      aqSave.disabled = false;
+    });
     const join = pane.querySelector("[data-join-provider]");
     if (join) join.addEventListener("click", () => { join.disabled = true; window.BBDOODY_AUTH.joinAsProvider().catch((e) => { notice(e.message, true); join.disabled = false; }); });
     const toggle = pane.querySelector("[data-alerts-toggle]");
@@ -184,6 +199,14 @@
       const show = (d) => {
         if (d.applied === false) { toggle.checked = false; toggle.disabled = true; status.textContent = "Step 1: fill in the provider application below. You can turn on alerts right after."; return; }
         toggle.disabled = false; toggle.checked = d.emailAlerts;
+        const aqp = pane.querySelector("[data-autoquote-panel]");
+        if (aqp && d.approved && d.autoQuote) {
+          aqp.hidden = false;
+          aqp.querySelector("[data-aq-on]").checked = d.autoQuote.enabled;
+          aqp.querySelector("[data-aq-pct]").value = String(d.autoQuote.adjustPct || 0);
+          aqp.querySelector("[data-aq-terms]").value = d.autoQuote.terms || "";
+          aqp.querySelector("[data-aq-status]").textContent = d.autoQuote.enabled ? "Auto-quote is ON." : "Auto-quote is off.";
+        }
         // Already applied: replace the application form with a status note so it can't be sent twice.
         const appForm = pane.querySelector('[data-form="provider-application"]');
         if (appForm) {
