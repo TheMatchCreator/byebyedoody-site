@@ -11,3 +11,6 @@
 
 /site.js
   Cache-Control: public, max-age=86400
+
+/logo.png
+  Access-Control-Allow-Origin: *
