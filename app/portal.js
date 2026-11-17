@@ -24,7 +24,7 @@
   }
   function notice(message, error = false) {
     const el = root.querySelector("[data-notice]");
-    if (el) { el.textContent = message; el.className = "portal-notice" + (error ? " is-error" : ""); el.hidden = false; }
+    if (el) { el.textContent = message; el.className = "portal-notice" + (error ? " is-error" : ""); el.hidden = false; try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch {} }
   }
   function shell() {
     root.innerHTML = `
@@ -184,6 +184,14 @@
       const show = (d) => {
         if (d.applied === false) { toggle.checked = false; toggle.disabled = true; status.textContent = "Step 1: fill in the provider application below. You can turn on alerts right after."; return; }
         toggle.disabled = false; toggle.checked = d.emailAlerts;
+        // Already applied: replace the application form with a status note so it can't be sent twice.
+        const appForm = pane.querySelector('[data-form="provider-application"]');
+        if (appForm) {
+          const card = appForm.closest("article");
+          card.innerHTML = d.approved
+            ? "<h2>✅ You're an approved provider</h2><p>No need to apply again. New jobs in your ZIP codes come to you as alerts; open <b>Find requests in my ZIP areas</b> below to quote them.</p>"
+            : "<h2>⏳ Application received</h2><p>ByeByeDoody is reviewing it. You'll be able to quote jobs as soon as you're approved.</p>";
+        }
         status.textContent = (d.emailAlerts ? "On. " : "Off. ") + (d.zips && d.zips.length ? "Your ZIP codes: " + d.zips.join(", ") + "." : "Add service ZIP codes below to start getting jobs.") + (d.approved === false ? " Your application is waiting for approval; alerts start as soon as you're approved." : "");
       };
       api("/api/marketplace/job-alerts").then(show).catch((e) => { status.textContent = e.message; toggle.disabled = true; });
