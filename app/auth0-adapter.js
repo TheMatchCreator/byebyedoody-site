@@ -79,12 +79,23 @@
       const c = await ready;
       const signedIn = await c.isAuthenticated();
       if (signedIn) {
-        const user = await c.getUser();
+        let user = await c.getUser();
+        // If the email was confirmed after this session started, pick that up automatically (once).
+        if (user && user.email_verified === false) {
+          let tried = false; try { tried = sessionStorage.getItem("bbd_verify_refresh") === "1"; sessionStorage.setItem("bbd_verify_refresh", "1"); } catch {}
+          if (!tried) {
+            try {
+              await c.getTokenSilently({ cacheMode: "off" });
+              const fresh = await c.getUser();
+              if (fresh && fresh.email_verified) { location.reload(); return; }
+            } catch {}
+          }
+        }
         let extra = "";
         try { extra = await ensureCustomerAccount(c); } catch (e) { extra = " (Account setup could not be completed: " + ((e && e.message) || "unknown error") + ")"; }
         justSignedIn = false;
         const unverified = user && user.email_verified === false;
-        setStatus("Signed in" + (user && user.email ? " as " + user.email : "") + "." + (unverified ? " ⚠️ One more step: open the email we sent you (check spam), click the confirm link, then sign out and back in." : extra));
+        setStatus("Signed in" + (user && user.email ? " as " + user.email : "") + "." + (unverified ? " ⚠️ One more step: open the email we sent you (check spam), click the confirm link, then tap Sign out and log back in." : extra));
       } else {
         setStatus("You are not signed in.");
       }
