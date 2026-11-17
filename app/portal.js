@@ -57,7 +57,13 @@
         const r = c && c["https://byebyedoody.com/role"];
         if (["customer", "provider", "admin"].includes(r)) { state.role = r; root.querySelector("#portal-role").value = r; }
         let open = null; try { open = sessionStorage.getItem("bbd_open_view"); sessionStorage.removeItem("bbd_open_view"); } catch {}
-        render(open === "provider" ? "provider" : "home");
+        let view = open === "provider" ? "provider" : "home";
+        if (r === "provider" && view === "home") {
+          // New provider who hasn't applied yet: take them straight to the application.
+          try { const st = await api("/api/marketplace/job-alerts"); if (st.applied === false) view = "provider"; } catch {}
+        }
+        render(view);
+        if (view === "provider") setTimeout(() => { const f = root.querySelector('[data-form="provider-application"]'); if (f && !f.closest("[hidden]")) f.scrollIntoView({ behavior: "smooth", block: "center" }); }, 300);
       } catch {}
     })();
     root.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => render(button.dataset.view)));
