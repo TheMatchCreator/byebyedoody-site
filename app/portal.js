@@ -41,7 +41,7 @@
             <button type="button" data-view="privacy">Privacy & support</button>
             <button type="button" data-view="admin">Administration</button>
           </nav>
-          <p class="portal-sidebar-note">Private workspace preview. Secure sign-in must be connected before data access is enabled.</p>
+          <p class="portal-sidebar-note">Your private workspace. Service addresses and notes are encrypted before they are stored.</p>
         </aside>
         <section class="portal-main">
           <div class="portal-top"><div><p class="eyebrow">YOUR BYEBYEDOODY WORKSPACE</p><h1 id="portal-title">Overview</h1></div><a class="button button-outline-dark" href="/marketplace/">Marketplace</a></div>
@@ -60,12 +60,12 @@
     const views = {
       home: () => `
         <div class="portal-grid">
-          <article class="portal-panel portal-wide"><p class="market-kicker">MARKETPLACE STATUS</p><h2>Secure account access is not connected</h2><p>The portal screens are prepared, but customer records, provider tools and administrator actions remain locked until the managed sign-in service and Cloudflare D1 database are configured.</p><h3>Configuration checks</h3><ul class="portal-readiness" data-readiness><li>Checking service configuration…</li></ul><p class="portal-muted">These checks report configuration presence only. They do not mean the marketplace is open or ready for real customers.</p><div class="portal-actions"><a class="button button-dark" href="/marketplace/customer-request.html">Send a service inquiry</a><a class="button button-outline-dark" href="/work-with-us.html">Provider information</a></div></article>
-          <article class="portal-panel"><h3>Customer workspace</h3><p>View your requests and compare independent provider quotes after secure sign-in is enabled.</p><button type="button" class="button button-outline-dark" data-go="requests">View requests</button></article>
+          <article class="portal-panel portal-wide"><p class="market-kicker">WELCOME</p><h2>Yard cleanup from independent local providers</h2><p>Request service, compare independent quotes from approved providers near you, and pay securely through Stripe once a provider accepts your job.</p>${state.role === "admin" ? '<h3>Configuration checks</h3><ul class="portal-readiness" data-readiness><li>Checking service configuration…</li></ul>' : ""}<div class="portal-actions"><button type="button" class="button button-dark" data-go="requests">Request service</button><a class="button button-outline-dark" href="/work-with-us.html">Provider information</a></div></article>
+          <article class="portal-panel"><h3>Customer workspace</h3><p>View your requests and compare independent provider quotes.</p><button type="button" class="button button-outline-dark" data-go="requests">View requests</button></article>
           <article class="portal-panel"><h3>Provider workspace</h3><p>Manage opt-in service ZIP codes, availability and independent quotes after approval.</p><button type="button" class="button button-outline-dark" data-go="provider">Provider tools</button></article>
           <article class="portal-panel"><h3>Privacy and support</h3><p>Submit a privacy request or report an issue associated with an active referral.</p><button type="button" class="button button-outline-dark" data-go="privacy">Open privacy tools</button></article>
         </div>
-        <article class="portal-panel portal-warning"><strong>Not a live booking system</strong><p>No bookings, automatic dispatch, customer charges or provider payouts are enabled.</p></article>`,
+        <article class="portal-panel"><strong>How it works</strong><p>1. Submit a service request. 2. Approved independent providers in your area may send quotes; they set their own rates and schedules. 3. Accept the quote you like. 4. Once the provider accepts, pay the quoted rate plus the disclosed ByeByeDoody platform fee through Stripe.</p></article>`,
       requests: () => `
         <article class="portal-panel"><h2>Submit a service request</h2><p>Private address and notes are encrypted before database storage. This submits a request for referral review, not a confirmed booking.</p><form data-form="customer-request"><label>Service ZIP code<input name="zip" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required></label><label>Service address<input name="address" maxlength="300" autocomplete="street-address" required></label><label>Frequency<select name="serviceType"><option value="one_time">One-time cleanup</option><option value="weekly">Weekly cleanup</option><option value="twice_weekly">Twice weekly</option><option value="custom">Custom schedule</option></select></label><label>Number of dogs<input name="dogCount" type="number" min="1" max="30" value="1" required></label><label>Yard size<select name="yardSize"><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option><option value="unknown">Not sure</option></select></label><label>Additional details<textarea name="notes" maxlength="1200"></textarea></label><label class="portal-check"><input type="checkbox" name="consent" required> I agree ByeByeDoody may contact me about this service request.</label><label class="portal-check"><input type="checkbox" name="matchingConsent" required> I agree that my ZIP code and non-sensitive service details may be shared with approved independent providers in my area so they can decide whether to submit a quote. My address and private notes are not shared at this stage.</label><button class="button button-dark">Submit service request</button></form></article><article class="portal-panel"><h2>My service requests</h2><p>View requests submitted through your authenticated account.</p><button class="button button-outline-dark" type="button" data-action="load-requests">Load my requests</button><div data-results class="portal-results"></div></article>`,
       quotes: () => `
@@ -123,12 +123,10 @@
         const configured = data.checks[key] === true;
         return "<li><span>" + escapeHtml(label) + "</span><strong class='" + (configured ? "is-ready" : "is-missing") + "'>" + (configured ? "Configured" : "Not configured") + "</strong></li>";
       }).join("");
-      if (data.readyForAuthenticatedTraffic !== true) {
-        const item = document.createElement("li");
-        item.className = "portal-readiness-note";
-        item.textContent = "Marketplace access remains disabled pending deployment and security testing.";
-        target.appendChild(item);
-      }
+      const modeItem = document.createElement("li");
+      modeItem.className = "portal-readiness-note";
+      modeItem.textContent = "Payments mode: " + (data.checks.paymentsMode === "live" ? "LIVE (real charges)" : "test (no real charges)") + ".";
+      target.appendChild(modeItem);
     } catch (error) {
       target.textContent = error.message;
     }
