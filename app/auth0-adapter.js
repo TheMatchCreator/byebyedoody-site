@@ -50,6 +50,17 @@
       cacheLocation: "localstorage"
     });
     const params = new URLSearchParams(window.location.search);
+    if (params.get("join") === "provider") {
+      // "Join as a provider" link: sign in (or sign up) and ask Auth0 to mark this account as a
+      // provider applicant. Approval is still required before any provider access is granted.
+      try { sessionStorage.setItem("bbd_open_view", "provider"); } catch {}
+      const claims = (await client.isAuthenticated()) ? await client.getIdTokenClaims() : null;
+      if (!claims || claims[ROLE_CLAIM] === "customer") {
+        await client.loginWithRedirect({ authorizationParams: { bbd_intent: "provider" } });
+        return new Promise(() => {});
+      }
+      window.history.replaceState({}, document.title, "/app/");
+    }
     if (params.has("code") && params.has("state")) {
       try { await client.handleRedirectCallback(); justSignedIn = true; }
       finally { window.history.replaceState({}, document.title, "/app/"); }
@@ -98,6 +109,7 @@
       return c.getIdTokenClaims();
     },
     async login() { const c = await ready; return c.loginWithRedirect(); },
+    async joinAsProvider() { const c = await ready; try { sessionStorage.setItem("bbd_open_view", "provider"); sessionStorage.removeItem("bbd_account_checked"); } catch {} return c.loginWithRedirect({ authorizationParams: { bbd_intent: "provider" } }); },
     async logout() { const c = await ready; return c.logout({ logoutParams: { returnTo: window.location.origin + "/app/" } }); }
   };
 

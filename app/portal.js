@@ -50,6 +50,16 @@
         </section>
       </div>`;
     root.querySelector("#portal-role").addEventListener("change", (event) => { state.role = event.target.value; render("home"); });
+    // Pick the workspace that matches the signed-in account automatically.
+    (async () => {
+      try {
+        const c = window.BBDOODY_AUTH && window.BBDOODY_AUTH.claims ? await window.BBDOODY_AUTH.claims() : null;
+        const r = c && c["https://byebyedoody.com/role"];
+        if (["customer", "provider", "admin"].includes(r)) { state.role = r; root.querySelector("#portal-role").value = r; }
+        let open = null; try { open = sessionStorage.getItem("bbd_open_view"); sessionStorage.removeItem("bbd_open_view"); } catch {}
+        render(open === "provider" ? "provider" : "home");
+      } catch {}
+    })();
     root.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => render(button.dataset.view)));
     render("home");
   }
@@ -72,6 +82,7 @@
         <article class="portal-panel"><h2>Submit an independent quote</h2><p>Approved providers set their own service rate. Submit a quote only for a request in your ZIP area and during your opted-in availability.</p><form data-form="quote"><label>Service request ID<input name="requestId" maxlength="80" required></label><label>Your service rate (USD)<input name="rate" type="number" min="1" max="20000" step="0.01" required></label><button type="button" class="button button-outline-dark" data-ai-price>✨ Suggest a price with AI</button><p class="portal-muted" data-ai-price-out></p><label>Terms or scope notes<textarea name="terms" maxlength="600"></textarea></label><button class="button button-dark">Submit quote</button></form></article><article class="portal-panel"><h2>My quotes</h2><p>Review quotes associated with your customer requests or provider account. Customers can invite a provider to respond to a selected quote; this is not a booking or payment.</p><button class="button button-outline-dark" type="button" data-action="load-quotes">Load my quotes</button><div data-results class="portal-results"></div><h3>Referral invitations</h3><p>Track customer quote selections and provider responses. An accepted invitation does not authorize work, dispatch, or payment.</p><button class="button button-outline-dark" type="button" data-action="load-invitations">Load invitations</button><div data-invitations class="portal-results"></div></article>`,
       provider: () => `
         <div class="portal-grid">
+          ${state.role === "customer" ? '<article class="portal-panel portal-wide"><h2>Want to earn money doing cleanups?</h2><p>Switch this account to an independent provider account in one click, then fill in the short application below. You can still book cleanups for yourself with a separate account.</p><button type="button" class="button button-dark" data-join-provider>Join as a provider</button></article>' : ""}
           <article class="portal-panel portal-wide"><h2>⚡ Instant job alerts</h2><p>Get an email the moment a customer in your service ZIP codes posts a job. Alerts are opportunities only: you choose which jobs to quote, and you can skip any job with no penalty.</p><label class="portal-check"><input type="checkbox" data-alerts-toggle> Email me new jobs in my ZIP codes</label><p class="portal-muted" data-alerts-status>Checking…</p></article>
           <article class="portal-panel portal-wide"><h2>Independent provider application</h2><p>Complete this application only if you operate your own independent business. Submission does not guarantee approval or work referrals. Required statements must reflect your real business practices.</p><form data-form="provider-application"><label>Independent business name<input name="businessName" required minlength="2" maxlength="120"></label><label>Service ZIP codes (comma-separated)<input name="zipCodes" placeholder="95823, 95824" required></label><label class="portal-check"><input type="checkbox" name="businessRegistration" required> I maintain the business registration required for my services.</label><label class="portal-check"><input type="checkbox" name="ownTools" required> I supply and maintain my own tools and equipment.</label><label class="portal-check"><input type="checkbox" name="independentClients" required> I am free to serve other customers and maintain independent clients.</label><label class="portal-check"><input type="checkbox" name="setsRates" required> I independently set or negotiate my own service rates.</label><label class="portal-check"><input type="checkbox" name="setsHours" required> I choose my own working hours and availability.</label><label class="portal-check"><input type="checkbox" name="freeChoice" required> I may freely accept or reject each referral without penalty.</label><button class="button button-dark">Submit provider application</button></form></article>
           <article class="portal-panel portal-wide"><h2>Opt-in service opportunities</h2><p>See only requests where the customer agreed to ZIP-based matching. You will not see customer street addresses or private notes before a separate lawful referral process.</p><button type="button" class="button button-dark" data-action="load-requests">Find requests in my ZIP areas</button><div data-results class="portal-results"></div></article><article class="portal-panel"><h2>Service ZIP codes</h2><p>Approved providers can choose up to 20 service ZIP codes.</p><form data-form="area"><label>Five-digit ZIP code<input name="zip" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required></label><button class="button button-dark">Add ZIP code</button></form><button type="button" class="button button-outline-dark" data-action="load-areas">Load my ZIP codes</button><div data-areas class="portal-results"></div></article>
@@ -159,6 +170,8 @@
       } catch (e) { out.textContent = e.message; }
       estBtn.disabled = false;
     });
+    const join = pane.querySelector("[data-join-provider]");
+    if (join) join.addEventListener("click", () => { join.disabled = true; window.BBDOODY_AUTH.joinAsProvider().catch((e) => { notice(e.message, true); join.disabled = false; }); });
     const toggle = pane.querySelector("[data-alerts-toggle]");
     if (toggle) {
       const status = pane.querySelector("[data-alerts-status]");
