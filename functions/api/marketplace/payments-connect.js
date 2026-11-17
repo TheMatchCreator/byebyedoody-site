@@ -63,7 +63,7 @@ export async function onRequest({ request, env }) {
     return json({ url: link.url, mode: "test" });
   } catch (error) {
     console.error("Stripe Connect onboarding failed:", error?.code || error?.status || "error");
-    const notConnect = /connect/i.test(error?.message || "") && /sign(ed)? up/i.test(error?.message || "");
-    return json({ error: notConnect ? "Stripe Connect is not enabled on the platform account yet." : "Payout setup could not be started. Please try again." }, 502);
+    // Test mode only: show Stripe's own reason so setup problems can be fixed.
+    return json({ error: "Payout setup could not be started (Stripe test mode): " + String(error?.message || "unknown error").slice(0, 300) }, 502);
   }
 }
