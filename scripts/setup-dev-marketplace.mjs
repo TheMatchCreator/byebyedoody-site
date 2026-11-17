@@ -109,9 +109,9 @@ for (const t of ["app_users", "service_requests", "notification_events", "audit_
   if (!(await tableExists(t))) throw new Error(`Expected table ${t} is missing after migrations.`);
 }
 console.log("Database schema is complete.");
-if (TARGET === "production") {
-  // Owner-approved administrator: byebyedoody123@aol.com (Auth0 user id below). No other accounts are pre-created.
-  const OWNER = "auth0|6afb8fb02e951191574d77ab";
+if (TARGET === "production" && process.env.BBD_OWNER_ADMIN_ID) {
+  // Owner-approved administrator account (set BBD_OWNER_ADMIN_ID to the owner's Auth0 user id).
+  const OWNER = process.env.BBD_OWNER_ADMIN_ID;
   await query("INSERT INTO app_users (id, role, email_verified_at, account_status) VALUES (?, 'admin', CURRENT_TIMESTAMP, 'active') ON CONFLICT(id) DO UPDATE SET role = 'admin', account_status = 'active'", [OWNER]);
   console.log("Owner administrator account is active in the production database.");
 }

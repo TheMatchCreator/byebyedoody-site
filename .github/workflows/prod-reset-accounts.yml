@@ -1,0 +1,20 @@
+name: Reset production accounts (owner request)
+on:
+  push:
+    branches: [marketplace-auth]
+    paths:
+      - "ops/run-prod-reset-accounts"
+permissions:
+  contents: read
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Reset accounts
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/prod-reset-accounts.mjs
