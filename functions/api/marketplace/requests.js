@@ -1,5 +1,8 @@
 import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { requireUser } from "../../_shared/marketplace-auth.js";
+import { alertProvidersForRequest } from "../../_shared/job-alerts.js";
+import { priceGuide } from "../../_shared/ai.js";
+import { feeBreakdown } from "../../_shared/stripe.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -30,7 +33,7 @@ function sameOrigin(request) {
   try { return new URL(origin).host === new URL(request.url).host; } catch { return false; }
 }
 
-export async function onRequest({ request, env }) {
+export async function onRequest({ request, env, waitUntil }) {
   if (!sameOrigin(request)) return json({ error: "Request origin could not be verified." }, 403);
   if (!env.DB) return json({ error: "Marketplace database is not connected." }, 503);
 
@@ -107,7 +110,13 @@ export async function onRequest({ request, env }) {
         SELECT lower(hex(randomblob(16))), id, 'in_app', 'admin_new_customer_request', 'queued'
         FROM app_users WHERE role = 'admin' AND account_status = 'active'`)
     ]);
-    return json({ ok: true, request: { id, zip, serviceType, dogCount: dogs, yardSize, status: "submitted" } }, 201);
+    const alerts = alertProvidersForRequest(env, { zip, serviceType, dogCount: dogs, yardSize }, new URL(request.url).origin)
+      .catch((e) => console.error("Job alerts failed:", e?.message || "error"));
+    if (typeof waitUntil === "function") waitUntil(alerts); else await alerts;
+    const g = priceGuide({ serviceType, dogCount: dogs, yardSize });
+    return json({ ok: true, request: { id, zip, serviceType, dogCount: dogs, yardSize, status: "submitted" },
+      estimate: { lowCents: feeBreakdown(g.lowCents).customerTotalCents, highCents: feeBreakdown(g.highCents).customerTotalCents, perVisit: serviceType !== "one_time", includesPlatformFee: true },
+      message: "Your request is posted. Approved providers who serve your ZIP code were alerted and can send you quotes." }, 201);
   } catch (error) {
     console.error("Marketplace request save failed:", error?.message || "database_error");
     return json({ error: "Your request could not be saved. Please try again later." }, 500);

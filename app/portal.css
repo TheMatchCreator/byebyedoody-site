@@ -17,3 +17,6 @@
 
 .auth-hint{flex-basis:100%;color:#4b5b52}
 .auth-bar [data-auth-signin][hidden] + .auth-hint{display:none}
+.job-steps{display:flex;gap:.4rem;list-style:none;padding:0;margin:.4rem 0;flex-wrap:wrap}
+.job-steps li{padding:.2rem .6rem;border-radius:999px;background:#eee;font-size:.85rem;color:#666}
+.job-steps li.done{background:#1f7a4d;color:#fff}

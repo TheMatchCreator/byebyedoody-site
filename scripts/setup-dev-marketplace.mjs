@@ -20,7 +20,7 @@ const PROJECT = "byebyedoody-site";
 const TARGET = process.env.BBD_TARGET === "production" ? "production" : "preview";
 const DB_NAME = TARGET === "production" ? "byebyedoody-marketplace-prod" : "byebyedoody-marketplace-dev";
 const SITE = TARGET === "production" ? "https://byebyedoody-site.pages.dev" : "https://marketplace-auth.byebyedoody-site.pages.dev";
-console.log(`Target: ${TARGET} (database ${DB_NAME}, site ${SITE}). Payments stay in Stripe TEST mode.`);
+console.log(`Target: ${TARGET} (database ${DB_NAME}, site ${SITE}). Payments mode comes from the Stripe key.`);
 const AUTH0_DOMAIN = "dev-67fy3ittqngxqy5v.us.auth0.com";
 const AUTH = {
   AUTH_ISSUER: `https://${AUTH0_DOMAIN}/`,
@@ -132,13 +132,14 @@ if (!existingVars.DATA_ENCRYPTION_KEY) {
 }
 await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`, {
   method: "PATCH",
-  body: JSON.stringify({ deployment_configs: { [TARGET]: { env_vars: envVars, d1_databases: { DB: { id: dbId } } } } })
+  body: JSON.stringify({ deployment_configs: { [TARGET]: { env_vars: envVars, d1_databases: { DB: { id: dbId } }, ai_bindings: { AI: {} } } } })
 });
 const after = (await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`)).deployment_configs[TARGET];
 const lost = Object.keys(existingVars).filter((k) => !(after.env_vars || {})[k]);
 if (lost.length) throw new Error(`Preview settings lost these variables, re-add them in Cloudflare: ${lost.join(", ")}`);
 console.log(`${TARGET} variables now set: ` + Object.keys(after.env_vars || {}).sort().join(", "));
 console.log(`${TARGET} D1 binding DB -> ` + DB_NAME + (after.d1_databases && after.d1_databases.DB ? " (connected)" : " (MISSING)"));
+console.log(`${TARGET} Workers AI binding AI: ` + (after.ai_bindings && after.ai_bindings.AI ? "connected" : "MISSING"));
 
 // 5. Stripe TEST MODE (only when the STRIPE_SECRET_KEY repository secret is present)
 const RAW_STRIPE = String(process.env.STRIPE_SECRET_KEY || "");
@@ -197,8 +198,13 @@ if (RAW_STRIPE.trim()) {
     console.log("Stripe test webhook already set up; leaving it unchanged.");
   }
   await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`, { method: "PATCH", body: JSON.stringify({ deployment_configs: { [TARGET]: { env_vars: stripeVars } } }) });
-  const now = (await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`)).deployment_configs[TARGET].env_vars || {};
-  const lostAfter = Object.keys(cur).filter((k) => !now[k]);
+  let now = (await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`)).deployment_configs[TARGET].env_vars || {};
+  let lostAfter = Object.keys(cur).filter((k) => !now[k]);
+  if (lostAfter.length) { // Cloudflare can briefly return a stale copy right after an update; read again.
+    await new Promise((r) => setTimeout(r, 5000));
+    now = (await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`)).deployment_configs[TARGET].env_vars || {};
+    lostAfter = Object.keys(cur).filter((k) => !now[k]);
+  }
   if (lostAfter.length) throw new Error("Preview settings lost: " + lostAfter.join(", "));
   console.log(`${TARGET} variables now set: ` + Object.keys(now).sort().join(", "));
 } else {

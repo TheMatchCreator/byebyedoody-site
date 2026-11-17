@@ -1,2 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /app/index.html
+
+Sitemap: https://www.byebyedoody.com/sitemap.xml
