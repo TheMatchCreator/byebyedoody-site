@@ -137,8 +137,8 @@ await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`, {
 const after = (await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`)).deployment_configs[TARGET];
 const lost = Object.keys(existingVars).filter((k) => !(after.env_vars || {})[k]);
 if (lost.length) throw new Error(`Preview settings lost these variables, re-add them in Cloudflare: ${lost.join(", ")}`);
-console.log(`${TARGET} variables now set: ` + + Object.keys(after.env_vars || {}).sort().join(", "));
-console.log(`${TARGET} D1 binding DB -> ` + + DB_NAME + (after.d1_databases && after.d1_databases.DB ? " (connected)" : " (MISSING)"));
+console.log(`${TARGET} variables now set: ` + Object.keys(after.env_vars || {}).sort().join(", "));
+console.log(`${TARGET} D1 binding DB -> ` + DB_NAME + (after.d1_databases && after.d1_databases.DB ? " (connected)" : " (MISSING)"));
 
 // 5. Stripe TEST MODE (only when the STRIPE_SECRET_KEY repository secret is present)
 const RAW_STRIPE = String(process.env.STRIPE_SECRET_KEY || "");
@@ -186,7 +186,7 @@ if (RAW_STRIPE.trim()) {
     });
     console.log(`::add-mask::${hook.secret}`);
     stripeVars.STRIPE_WEBHOOK_SECRET = { type: "secret_text", value: hook.secret };
-    console.log("Created the Stripe test webhook for the test site.");
+    console.log(`Created the Stripe test webhook for the ${TARGET} site.`);
   } else {
     console.log("Stripe test webhook already set up; leaving it unchanged.");
   }
@@ -194,7 +194,7 @@ if (RAW_STRIPE.trim()) {
   const now = (await cf(`/accounts/${accountId}/pages/projects/${PROJECT}`)).deployment_configs[TARGET].env_vars || {};
   const lostAfter = Object.keys(cur).filter((k) => !now[k]);
   if (lostAfter.length) throw new Error("Preview settings lost: " + lostAfter.join(", "));
-  console.log(`${TARGET} variables now set: ` + + Object.keys(now).sort().join(", "));
+  console.log(`${TARGET} variables now set: ` + Object.keys(now).sort().join(", "));
 } else {
   console.log("Stripe: STRIPE_SECRET_KEY repository secret not set yet; skipping payments setup.");
 }
