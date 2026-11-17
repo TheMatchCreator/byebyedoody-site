@@ -70,7 +70,7 @@ export async function onRequest({ request, env }) {
       account: accountId,
       use_case: {
         type: "account_onboarding",
-        account_onboarding: { configurations: ["recipient"], refresh_url: `${origin}/app/?payouts=refresh`, return_url: `${origin}/app/?payouts=done` }
+        account_onboarding: { refresh_url: `${origin}/app/?payouts=refresh`, return_url: `${origin}/app/?payouts=done` }
       }
     });
     return json({ url: link.url, mode: "test" });
