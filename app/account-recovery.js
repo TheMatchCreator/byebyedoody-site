@@ -37,7 +37,7 @@
     try {
       await sendReset(email);
       form.hidden = true; open.hidden = false;
-      say(`If ${email} has a ByeByeDoody password account, a reset link is on its way from no-reply@byebyedoody.com. Check your inbox and spam folder; the link works for a limited time.`);
+      say(`If ${email} has a ByeByeDoody password account, a reset link is on its way from no-reply@byebyedoody.com. Check your inbox and spam folder; the link works for 24 hours. After you choose a new password, come back to www.byebyedoody.com/app and sign in.`);
     } catch (err) { say(err.message, true); }
     btn.disabled = false;
   });
@@ -56,7 +56,7 @@
       change.textContent = "Change my password";
       change.addEventListener("click", async () => {
         change.disabled = true;
-        try { await sendReset(c.email); say(`We emailed a link to ${c.email} to set a new password. Check your inbox and spam folder.`); }
+        try { await sendReset(c.email); say(`We emailed a link to ${c.email} to set a new password. Check your inbox and spam folder, then sign in again here with the new password.`); }
         catch (err) { say(err.message, true); }
         change.disabled = false;
       });
