@@ -315,7 +315,9 @@
         html=draft ? "<h3>"+escapeHtml(draft.title)+"</h3><p><b>"+escapeHtml(draft.notice)+"</b></p><ul>"+draft.points.map((point)=>"<li>"+escapeHtml(point)+"</li>").join("")+"</ul><p>Version: "+escapeHtml(draft.version)+"</p>"+(accepted?"<p>Receipt acknowledgement already recorded for this draft version.</p>":"<form data-draft-ack><label><input type='checkbox' name='acknowledged' required> I confirm I have read this draft and acknowledge receipt only. I understand this is not a contract or authorization to perform work.</label><button class='button button-dark'>Acknowledge receipt</button></form>") : "<p>No draft terms are available for this role.</p>";
       }
       if (action === "admin-live") {
-        data=await api("/api/marketplace/admin-live");
+        if (button && button.isConnected) { button.disabled = true; button.textContent = "Refreshing…"; }
+        try { data=await api("/api/marketplace/admin-live"); }
+        finally { if (button && button.isConnected) { button.disabled = false; button.textContent = "✓ Updated"; setTimeout(() => { if (button.isConnected) button.textContent = "Refresh now"; }, 1500); } }
         const t=(v)=>{ if(!v) return "—"; const d=new Date(v.includes("T")?v:v.replace(" ","T")+"Z"); return isNaN(d)?v:d.toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}); };
         const pros=(data.livePros||[]).map((p)=>"<div class='portal-result-row'><b>🟢 "+escapeHtml(p.name||"Pro")+"</b><span>Live until "+escapeHtml(t(p.liveUntil))+"</span><span>ZIPs: "+escapeHtml(p.zips||"none set")+"</span><span>"+(p.payoutsReady?"Payouts ready":"⚠️ Payouts not set up (can't accept)")+"</span></div>").join("");
         const open=(data.openJobs||[]).map((j)=>"<div class='portal-result-row'><b>⏳ "+escapeHtml(j.service)+" · ZIP "+escapeHtml(j.zip)+"</b><span>Dogs: "+escapeHtml(j.dogs??"—")+"</span><span>Pro gets: "+escapeHtml(j.proGetsCents?money(j.proGetsCents):"—")+"</span><span>Posted "+escapeHtml(t(j.postedAt))+"</span><span>"+(j.liveProsNearby>0?escapeHtml(j.liveProsNearby)+" live pro(s) cover this ZIP":"⚠️ No live pro covers this ZIP right now")+"</span></div>").join("");
