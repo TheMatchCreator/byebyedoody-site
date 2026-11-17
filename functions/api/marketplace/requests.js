@@ -1,7 +1,7 @@
 import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { requireUser } from "../../_shared/marketplace-auth.js";
 import { alertProvidersForRequest } from "../../_shared/job-alerts.js";
-import { priceGuide } from "../../_shared/ai.js";
+import { priceGuide, suggestPrice } from "../../_shared/ai.js";
 import { feeBreakdown } from "../../_shared/stripe.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -91,6 +91,15 @@ export async function onRequest({ request, env, waitUntil }) {
   if (input.consent !== true) return json({ error: "Please confirm permission to contact you about this service request." }, 400);
   if (input.matchingConsent !== true) return json({ error: "Please choose whether to share your ZIP code and non-sensitive service details with approved providers for matching." }, 400);
 
+  const instant = input.bookingMode === "instant";
+  let instantRate = null;
+  if (instant) {
+    // Use the exact price the customer just confirmed, if it is inside the local price range.
+    const g0 = priceGuide({ serviceType, dogCount: dogs, yardSize });
+    const offered = Number(input.instantRateCents);
+    if (Number.isSafeInteger(offered) && offered >= g0.lowCents && offered <= g0.highCents) instantRate = offered;
+    else instantRate = (await suggestPrice(env, { serviceType, dogCount: dogs, yardSize })).suggestedCents;
+  }
   let addressCiphertext, notesCiphertext;
   try {
     addressCiphertext = await encryptPrivate(address, env);
@@ -102,18 +111,24 @@ export async function onRequest({ request, env, waitUntil }) {
   const id = crypto.randomUUID();
   try {
     await env.DB.batch([
-      env.DB.prepare("INSERT INTO service_requests (id, customer_id, service_zip, service_address_ciphertext, service_type, dog_count, yard_size, scope_notes_ciphertext, matching_consent_at, matching_consent_version, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'zip_matching_v1', 'submitted')")
-        .bind(id, user.id, zip, addressCiphertext, serviceType, dogs, yardSize, notesCiphertext),
+      env.DB.prepare("INSERT INTO service_requests (id, customer_id, service_zip, service_address_ciphertext, service_type, dog_count, yard_size, scope_notes_ciphertext, matching_consent_at, matching_consent_version, status, booking_mode, instant_rate_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'zip_matching_v1', 'submitted', ?, ?)")
+        .bind(id, user.id, zip, addressCiphertext, serviceType, dogs, yardSize, notesCiphertext, instant ? "instant" : "quotes", instantRate),
       env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'customer_request_submitted', 'service_request', ?)")
         .bind(crypto.randomUUID(), user.id, id),
       env.DB.prepare(`INSERT INTO notification_events (id, user_id, channel, template_key, delivery_status)
         SELECT lower(hex(randomblob(16))), id, 'in_app', 'admin_new_customer_request', 'queued'
         FROM app_users WHERE role = 'admin' AND account_status = 'active'`)
     ]);
-    const alerts = alertProvidersForRequest(env, { id, zip, serviceType, dogCount: dogs, yardSize }, new URL(request.url).origin)
+    const alerts = alertProvidersForRequest(env, { id, zip, serviceType, dogCount: dogs, yardSize, instantRateCents: instantRate }, new URL(request.url).origin)
       .catch((e) => console.error("Job alerts failed:", e?.message || "error"));
     if (typeof waitUntil === "function") waitUntil(alerts); else await alerts;
     const g = priceGuide({ serviceType, dogCount: dogs, yardSize });
+    if (instant) {
+      const fb = feeBreakdown(instantRate);
+      return json({ ok: true, instant: true, request: { id, zip, serviceType, dogCount: dogs, yardSize, status: "submitted" },
+        price: { providerRateCents: fb.providerRateCents, platformFeeCents: fb.platformFeeCents, customerTotalCents: fb.customerTotalCents },
+        message: `Your job is live! Local pros near ${zip} were alerted. The first one to accept gets it, and you'll see "Pay now" at the top of this page. Price: ${(fb.customerTotalCents / 100).toFixed(2)} total including ByeByeDoody's 20% platform fee.` }, 201);
+    }
     return json({ ok: true, request: { id, zip, serviceType, dogCount: dogs, yardSize, status: "submitted" },
       estimate: { lowCents: feeBreakdown(g.lowCents).customerTotalCents, highCents: feeBreakdown(g.highCents).customerTotalCents, perVisit: serviceType !== "one_time", includesPlatformFee: true },
       message: "Your request is posted. Approved providers who serve your ZIP code were alerted and can send you quotes." }, 201);

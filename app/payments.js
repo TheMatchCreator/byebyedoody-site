@@ -83,7 +83,20 @@
     for (let i = 0; i < 40 && !(window.BBDOODY_AUTH && window.BBDOODY_AUTH.claims); i++) await new Promise((r) => setTimeout(r, 150));
     const r = await role();
     if (r === "provider") await renderProvider();
-    else if (r === "customer") await renderCustomer();
+    else if (r === "customer") {
+      await renderCustomer();
+      // Live: when a pro accepts an instant job, "Pay" appears here without reloading.
+      let lastCount = null;
+      setInterval(async () => {
+        if (document.hidden || box.querySelector("[data-ack]:checked")) return;
+        try {
+          const d = await call("/api/marketplace/payments-checkout");
+          const unpaid = d.jobs.filter((j) => j.paymentStatus !== "paid").length;
+          if (lastCount !== null && unpaid > lastCount) { await renderCustomer(); status("🎉 A pro accepted your job! Pay below to confirm it."); try { box.scrollIntoView({ behavior: "smooth" }); } catch {} }
+          lastCount = unpaid;
+        } catch {}
+      }, 15000);
+    }
     else { box.hidden = true; return; }
     box.hidden = false;
     if (banner) status(banner);

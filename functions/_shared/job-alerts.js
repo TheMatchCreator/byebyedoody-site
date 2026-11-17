@@ -23,7 +23,7 @@ export async function alertProvidersForRequest(env, request, siteOrigin) {
   ).bind(crypto.randomUUID(), r.user_id)));
   // AI auto-quote: providers who switched it on get their own adjusted AI price sent instantly.
   const autoQuoted = new Map();
-  const autoRows = request.id ? rows.filter((r) => r.auto_quote_enabled) : [];
+  const autoRows = request.id && !request.instantRateCents ? rows.filter((r) => r.auto_quote_enabled) : [];
   if (autoRows.length) {
     let base = null;
     try { base = await suggestPrice(env, request); } catch { base = null; }
@@ -58,7 +58,17 @@ export async function alertProvidersForRequest(env, request, siteOrigin) {
     let to = "";
     try { to = await decryptPrivate(r.alert_email_ciphertext, env); } catch { continue; }
     const auto = autoQuoted.get(r.user_id);
-    const sent = await sendEmail(env, auto ? {
+    const sent = await sendEmail(env, request.instantRateCents ? {
+      to,
+      subject: `⚡ Instant job in ${request.zip}: $${(request.instantRateCents / 100).toFixed(2)} for you. First to accept gets it`,
+      text: `A customer in ZIP ${request.zip} wants a cleanup now and already agreed to the price.
+
+Job: ${SERVICE[request.serviceType] || "Cleanup"}, ${request.dogCount} dog(s), ${request.yardSize} yard.
+You'd receive: $${(request.instantRateCents / 100).toFixed(2)} (your full rate; the customer pays ByeByeDoody's 20% fee on top).
+
+Want it? Open ${link} and tap "Accept" under Live jobs. The first pro to accept gets it. Not interested? Just ignore this email, no penalty.
+ByeByeDoody`
+    } : auto ? {
       to,
       subject: `Auto-quote sent: $${(auto / 100).toFixed(2)} for a cleanup in ${request.zip}`,
       text: `A customer in ZIP ${request.zip} just asked for dog-waste cleanup, and your AI auto-quote of $${(auto / 100).toFixed(2)} was sent to them right away.

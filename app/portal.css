@@ -26,3 +26,5 @@
 .recovery label{display:flex;flex-direction:column;font-weight:600;gap:.3rem}
 .recovery input{padding:.6rem .7rem;border:1px solid #d8e0d8;border-radius:9px;font:inherit}
 .recovery-note,.recovery-msg{font-size:.9rem;color:#4b5b52;margin:0}
+.live-job.is-instant{border-left:4px solid #e0a100;background:#fffaf0}
+.live-job .button{margin-top:.4rem;align-self:flex-start}

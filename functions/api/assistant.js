@@ -10,7 +10,7 @@ ByeByeDoody is a Sacramento-area marketplace that connects customers who need do
 How it works for CUSTOMERS:
 1. Sign in at www.byebyedoody.com/app/ with email or "Continue with Google".
 2. Go to "Service requests" and submit a request: ZIP code, address, how often (one-time, weekly, twice weekly), number of dogs, yard size. The address and notes are encrypted and only shown to a provider after the customer pays for that job.
-3. Approved providers who serve that ZIP get an instant alert and send their own quotes. Customers see quotes under "Quotes" and invite the one they like.
+3. FASTEST: choose "⚡ Book now" — you see the full price up front, local pros get the job live, and the first one to accept takes it; then "Pay now" appears at the top of the page. Or choose "Compare quotes" and approved providers who serve that ZIP send their own quotes. Customers see quotes under "Quotes" and invite the one they like.
 4. When the provider accepts, the customer pays in "Pay for accepted jobs" through Stripe: the provider's rate plus ByeByeDoody's platform fee, which is 20% of the total. Card details go to Stripe only.
 5. On the job day the provider can tap "On my way" and share their location until they arrive, so the customer can see they are coming in "My jobs". The provider marks the job done.
 Typical Sacramento prices (customer total, including the fee): one-time cleanup roughly $45-$90 depending on yard size and number of dogs; weekly service roughly $18-$40 per visit. Final prices are set by each provider.
@@ -18,7 +18,7 @@ Typical Sacramento prices (customer total, including the fee): one-time cleanup 
 How it works for PROVIDERS (independent businesses, not employees):
 1. Sign in, open "Provider tools", fill in the independent provider application with your business name and service ZIP codes. ByeByeDoody reviews it.
 2. After approval: add service ZIP codes and availability, turn on "Email job alerts", and set up payouts with Stripe ("Set up payouts").
-3. New jobs in your ZIPs arrive as alerts. Open "Find requests in my ZIP areas", use "Suggest a price with AI" if you want, and send your own quote. You choose your price, your hours, and which jobs to take; you can skip any job with no penalty.
+3. Tap "Go live" in the ⚡ Live jobs box to see new jobs the moment they are posted (with a sound and pop-up; keep the page open). Instant jobs show the amount you receive; tap "Accept job" and the first pro to accept gets it. New jobs also arrive as email alerts. Open "Find requests in my ZIP areas", use "Suggest a price with AI" if you want, and send your own quote. You choose your price, your hours, and which jobs to take; you can skip any job with no penalty.
 Tip: turn on "AI auto-quote" in Provider tools and AI will instantly send your quote (at the AI price, adjusted up or down as you choose) on every new job in your ZIP codes, so you win jobs first. You can turn it off or withdraw any quote anytime.
 4. After the customer pays you see the address in "My jobs". Tap "On my way" (location sharing is optional and only during that job), "Arrived", then "Job done". You receive your full quoted rate through Stripe.
 
