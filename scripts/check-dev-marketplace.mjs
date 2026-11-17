@@ -9,3 +9,6 @@ console.log("app_users by role/status:", JSON.stringify(await q("SELECT role, ac
 console.log("customer_profiles:", JSON.stringify(await q("SELECT COUNT(*) AS n FROM customer_profiles")));
 console.log("recent audit actions:", JSON.stringify(await q("SELECT action, COUNT(*) AS n FROM audit_events GROUP BY action")));
 console.log("rate-limit buckets used:", JSON.stringify(await q("SELECT COUNT(*) AS n FROM api_rate_limits")));
+console.log("referrals:", JSON.stringify(await q("SELECT provider_rate_cents, platform_fee_cents, customer_total_cents, payment_status, status, paid_at FROM referrals ORDER BY created_at DESC LIMIT 5")));
+console.log("ledger:", JSON.stringify(await q("SELECT entry_type, amount_cents, status FROM payment_ledger ORDER BY created_at DESC LIMIT 6")));
+console.log("stripe events:", JSON.stringify(await q("SELECT type, COUNT(*) AS n FROM stripe_events GROUP BY type")));
