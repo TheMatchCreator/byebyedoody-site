@@ -16,3 +16,4 @@
 .payments-panel .portal-result-row{display:flex;flex-direction:column;gap:6px;margin-top:12px}
 
 .auth-hint{flex-basis:100%;color:#4b5b52}
+.auth-bar [data-auth-signin][hidden] + .auth-hint{display:none}
