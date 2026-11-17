@@ -22,7 +22,7 @@
   .bbd-chat form button{border:0;border-radius:999px;background:#173d31;color:#fff;padding:0 16px;font-weight:700;cursor:pointer}
   .bbd-note{font-size:11px;color:#63716a;padding:0 12px 6px;background:#f7f8f2}`;
   const style = document.createElement("style"); style.textContent = css; document.head.appendChild(style);
-  const btn = document.createElement("button"); btn.className = "bbd-chat-btn"; btn.type = "button"; btn.textContent = "💬 Ask ByeByeDoody AI";
+  const btn = document.createElement("button"); btn.className = "bbd-chat-btn"; btn.type = "button"; btn.textContent = window.innerWidth < 600 ? "💬 Ask AI" : "💬 Ask ByeByeDoody AI";
   const panel = document.createElement("section"); panel.className = "bbd-chat"; panel.hidden = true; panel.setAttribute("aria-label", "ByeByeDoody AI helper");
   panel.innerHTML = `<header><b>ByeByeDoody AI helper</b><button type="button" aria-label="Close">×</button></header>
     <div class="bbd-log" aria-live="polite"></div>
