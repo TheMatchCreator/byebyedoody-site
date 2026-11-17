@@ -1,0 +1,20 @@
+-- More partner referral codes (batch 2).
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('MERIDIAN', 'Meridian Veterinary Care', 'Vet');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('BLUERAVINE', 'Blue Ravine Animal Hospital', 'Vet');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('CHERRYCREEK', 'Cherry Creek Veterinary Hospital', 'Vet');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('DENRESORT', 'The Animal Den Pet Resort', 'Daycare/Boarding');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('BATHBISCUITS', 'Bath & Biscuits', 'Groomer');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('SPLASHHOUND', 'Splash Hound USA Pet Supply & Dog Wash', 'Groomer');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('GRATEFUL', 'Grateful Dog', 'Daycare/Boarding');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('FETCHROSEVIL', 'Fetch! Pet Care of Roseville - Folsom Lake', 'Daycare/Boarding');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('FETCHELKGROV', 'Fetch! Pet Care of Elk Grove & Sacramento', 'Daycare/Boarding');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('NAILSPUPPYTA', 'Nails & Puppy Dog Tails', 'Groomer');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('COUNTRYCANIN', 'Country Canine', 'Trainer');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('TUGDOGS', 'Tug Dogs', 'Trainer');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('VALUE', 'Value Dog Training', 'Trainer');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('PETYOUR', 'P.E.T. your dog', 'Trainer');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('PRIMALNEEDS', 'Primal Needs', 'Pet store');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('PETWATCH916', 'PetWatch 916', 'Daycare/Boarding');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('KARLAS', 'Karla''s Pet Care', 'Daycare/Boarding');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('HAPPYFEET', 'Happy Feet Pet Sitting', 'Daycare/Boarding');
+INSERT OR IGNORE INTO partner_codes (code, business_name, segment) VALUES ('HAPPYTAILS', 'Happy Tails Pet Sitting', 'Daycare/Boarding');
