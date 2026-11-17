@@ -76,7 +76,7 @@
     const views = {
       home: () => `
         <div class="portal-grid">
-          <article class="portal-panel portal-wide"><p class="market-kicker">WELCOME</p><h2>Yard cleanup from independent local providers</h2><p>Request service, compare independent quotes from approved providers near you, and pay securely through Stripe once a provider accepts your job.</p>${state.role === "admin" ? '<h3>Configuration checks</h3><ul class="portal-readiness" data-readiness><li>Checking service configuration…</li></ul>' : ""}<div class="portal-actions"><button type="button" class="button button-dark" data-go="requests">Request service</button><a class="button button-outline-dark" href="/work-with-us.html">Provider information</a></div></article>
+          <article class="portal-panel portal-wide"><p class="market-kicker">WELCOME</p><h2>Yard cleanup from independent local providers</h2><p>Request service, compare independent quotes from approved providers near you, and pay securely through Stripe once a provider accepts your job.</p>${state.role === "admin" ? '<p><button type="button" class="button button-dark" data-go="admin">⚡ See live on-demand jobs</button></p><h3>Configuration checks</h3><ul class="portal-readiness" data-readiness><li>Checking service configuration…</li></ul>' : ""}<div class="portal-actions"><button type="button" class="button button-dark" data-go="requests">Request service</button><a class="button button-outline-dark" href="/work-with-us.html">Provider information</a></div></article>
           <article class="portal-panel"><h3>Customer workspace</h3><p>View your requests and compare independent provider quotes.</p><button type="button" class="button button-outline-dark" data-go="requests">View requests</button></article>
           <article class="portal-panel"><h3>Provider workspace</h3><p>Manage opt-in service ZIP codes, availability and independent quotes after approval.</p><button type="button" class="button button-outline-dark" data-go="provider">Provider tools</button></article>
           <article class="portal-panel"><h3>Privacy and support</h3><p>Submit a privacy request or report an issue associated with an active referral.</p><button type="button" class="button button-outline-dark" data-go="privacy">Open privacy tools</button></article>
@@ -108,6 +108,7 @@
         </div>`,
       admin: () => `
         <div class="portal-grid">
+          <article class="portal-panel portal-wide"><h2>⚡ Live on-demand</h2><p>Pros who are live right now, "Book now" jobs waiting for a pro, and instant jobs taken in the last 7 days. Updates every 20 seconds.</p><button type="button" class="button button-dark" data-action="admin-live">Refresh now</button><div data-admin-live class="portal-results"></div></article>
           <article class="portal-panel"><h2>Operations overview</h2><p>Restricted to active administrator accounts.</p><button type="button" class="button button-dark" data-action="admin-overview">Load queue counts</button><div data-results class="portal-results"></div></article>
           <article class="portal-panel"><h2>Administrator alerts</h2><p>New customer requests and provider applications awaiting review.</p><button type="button" class="button button-outline-dark" data-action="load-notifications">Load admin alerts</button><div data-notifications class="portal-results"></div></article>
           <article class="portal-panel"><h2>Provider applications</h2><p>Review submitted applications. Approval requires verified email and all independence attestations.</p><button type="button" class="button button-dark" data-action="admin-providers">Load applications</button><div data-providers class="portal-results"></div></article>
@@ -123,7 +124,13 @@
     pane.querySelectorAll("form").forEach((form) => form.addEventListener("submit", (event) => submitForm(event, form)));
     pane.querySelectorAll("[data-action]").forEach((button) => button.addEventListener("click", () => runAction(button.dataset.action, button)));
     if (view === "home") loadReadiness();
+    clearInterval(liveAdminTimer);
+    if (view === "admin") {
+      const btn = pane.querySelector('[data-action="admin-live"]');
+      if (btn) { runAction("admin-live", btn); liveAdminTimer = setInterval(() => { if (!document.hidden && document.body.contains(btn)) runAction("admin-live", btn); }, 20000); }
+    }
   }
+  var liveAdminTimer = null;
   async function loadReadiness() {
     const target = root.querySelector("[data-readiness]");
     if (!target) return;
@@ -282,8 +289,8 @@
   }
   async function runAction(action, button) {
     const panel = button.closest(".portal-panel");
-    const target = panel?.querySelector("[data-results],[data-invitations],[data-areas],[data-availability],[data-privacy],[data-providers],[data-matches],[data-agreements],[data-notifications],[data-admin-referrals],[data-admin-audit]");
-    if (target) target.textContent = "Loading…";
+    const target = panel?.querySelector("[data-results],[data-invitations],[data-areas],[data-availability],[data-privacy],[data-providers],[data-matches],[data-agreements],[data-notifications],[data-admin-referrals],[data-admin-audit],[data-admin-live]");
+    if (target && !(action === "admin-live" && target.innerHTML)) target.textContent = "Loading…";
     const renderRows = (rows, fields) => rows.length ? rows.map((row) => "<div class='portal-result-row'>"+fields.map(([key,label])=>"<span><b>"+escapeHtml(label)+":</b> "+escapeHtml(row[key] ?? "—")+"</span>").join("")+(action==="load-requests" && state.role==="provider" ? "<button type='button' data-quote-request='"+escapeHtml(row.id)+"'>Prepare quote</button>" : action==="load-requests" && state.role==="customer" && ["submitted","quoted","open_for_referral"].includes(row.status) ? "<button type='button' data-cancel-request='"+escapeHtml(row.id)+"'>Cancel request</button>" : "")+"</div>").join("") : "<p>No records found.</p>";
     try {
       let data, html = "";
@@ -306,6 +313,18 @@
         const draft=data.draft;
         const accepted=(data.acknowledgements||[]).some((item)=>item.agreement_key===draft?.key && item.agreement_version===draft?.version);
         html=draft ? "<h3>"+escapeHtml(draft.title)+"</h3><p><b>"+escapeHtml(draft.notice)+"</b></p><ul>"+draft.points.map((point)=>"<li>"+escapeHtml(point)+"</li>").join("")+"</ul><p>Version: "+escapeHtml(draft.version)+"</p>"+(accepted?"<p>Receipt acknowledgement already recorded for this draft version.</p>":"<form data-draft-ack><label><input type='checkbox' name='acknowledged' required> I confirm I have read this draft and acknowledge receipt only. I understand this is not a contract or authorization to perform work.</label><button class='button button-dark'>Acknowledge receipt</button></form>") : "<p>No draft terms are available for this role.</p>";
+      }
+      if (action === "admin-live") {
+        data=await api("/api/marketplace/admin-live");
+        const t=(v)=>{ if(!v) return "—"; const d=new Date(v.includes("T")?v:v.replace(" ","T")+"Z"); return isNaN(d)?v:d.toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}); };
+        const pros=(data.livePros||[]).map((p)=>"<div class='portal-result-row'><b>🟢 "+escapeHtml(p.name||"Pro")+"</b><span>Live until "+escapeHtml(t(p.liveUntil))+"</span><span>ZIPs: "+escapeHtml(p.zips||"none set")+"</span><span>"+(p.payoutsReady?"Payouts ready":"⚠️ Payouts not set up (can't accept)")+"</span></div>").join("");
+        const open=(data.openJobs||[]).map((j)=>"<div class='portal-result-row'><b>⏳ "+escapeHtml(j.service)+" · ZIP "+escapeHtml(j.zip)+"</b><span>Dogs: "+escapeHtml(j.dogs??"—")+"</span><span>Pro gets: "+escapeHtml(j.proGetsCents?money(j.proGetsCents):"—")+"</span><span>Posted "+escapeHtml(t(j.postedAt))+"</span><span>"+(j.liveProsNearby>0?escapeHtml(j.liveProsNearby)+" live pro(s) cover this ZIP":"⚠️ No live pro covers this ZIP right now")+"</span></div>").join("");
+        const done=(data.acceptedJobs||[]).map((j)=>"<div class='portal-result-row'><b>✅ "+escapeHtml(j.service)+" · ZIP "+escapeHtml(j.zip)+"</b><span>Taken by: "+escapeHtml(j.pro)+"</span><span>Pro gets: "+escapeHtml(j.proGetsCents?money(j.proGetsCents):"—")+"</span><span>Accepted "+escapeHtml(t(j.acceptedAt))+"</span></div>").join("");
+        html="<p><b>"+escapeHtml((data.livePros||[]).length)+"</b> of <b>"+escapeHtml(data.approvedPros||0)+"</b> approved pros are live right now · <b>"+escapeHtml((data.openJobs||[]).length)+"</b> Book-now jobs waiting</p>"
+          +"<h3>Pros live now</h3>"+(pros||"<p>No pros are live right now. Approved pros go live from their My account page.</p>")
+          +"<h3>Book-now jobs waiting for a pro</h3>"+(open||"<p>No jobs waiting.</p>")
+          +"<h3>Taken in the last 7 days</h3>"+(done||"<p>None yet.</p>")
+          +"<p class='portal-muted'>Last updated "+escapeHtml(new Date().toLocaleTimeString())+". Customer names, contact details and addresses are not shown.</p>";
       }
       if (action === "admin-overview") { data=await api("/api/marketplace/admin-overview"); html=["requests","providers","quotes","serviceIssues","privacyRequests"].map((key)=>"<h3>"+escapeHtml(key)+"</h3>"+renderRows(data[key]||[],[["status","Status"],["count","Count"]])).join(""); }
       if (action === "admin-providers") { data=await api("/api/marketplace/admin-providers"); html=(data.providers||[]).map((p)=>"<div class='portal-result-row'><b>"+escapeHtml(p.independent_business_name)+"</b><span>Status: "+escapeHtml(p.onboarding_status)+"</span><span>Provider ID: "+escapeHtml(p.user_id)+"</span><div class='portal-actions'><button type='button' data-review='approve' data-id='"+escapeHtml(p.user_id)+"'>Approve</button><button type='button' data-review='reject' data-id='"+escapeHtml(p.user_id)+"'>Reject</button><button type='button' data-review='request_changes' data-id='"+escapeHtml(p.user_id)+"'>Request changes</button></div></div>").join("")||"<p>No applications.</p>"; }
