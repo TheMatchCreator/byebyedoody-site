@@ -13,7 +13,9 @@ const ADMIN = process.env.BBD_ADMIN_ID || "auth0|6afb8fb02e951191574d77ab"; // b
 const PROVIDER = "google-oauth2|109308270764906462496";
 await q("UPDATE app_users SET role = 'customer', account_status = 'closed', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [WRONG]);
 if (ADMIN) await q("INSERT INTO app_users (id, role, account_status) VALUES (?, 'admin', 'active') ON CONFLICT(id) DO UPDATE SET role = 'admin', account_status = 'active', updated_at = CURRENT_TIMESTAMP", [ADMIN]);
-await q("UPDATE app_users SET role = 'provider', account_status = 'pending', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [PROVIDER]);
+// Never touch the provider's status here: approval is the admin's decision in the portal.
+// (One-time repair: an earlier run of this script reset the admin-approved provider to pending.)
+await q("UPDATE app_users SET account_status = 'active', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND role = 'provider' AND account_status = 'pending' AND EXISTS (SELECT 1 FROM provider_profiles WHERE user_id = ? AND onboarding_status = 'approved')", [PROVIDER, PROVIDER]);
 for (const [id, note] of [[WRONG, "dev_role_closed_typo_account"], [ADMIN, "dev_role_set_admin"], [PROVIDER, "dev_role_set_provider"]]) {
   if (id) await q("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, ?, 'app_user', ?)", [crypto.randomUUID(), ADMIN || PROVIDER, note, id]);
 }
