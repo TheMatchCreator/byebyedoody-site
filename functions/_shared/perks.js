@@ -30,7 +30,18 @@ export async function applyReferralCode(env, userId, rawCode) {
   const used = await env.DB.prepare("SELECT 1 FROM service_requests WHERE customer_id = ? LIMIT 1").bind(userId).first();
   if (used) return { applied: false };
   const referrer = await env.DB.prepare("SELECT user_id FROM customer_profiles WHERE referral_code = ?").bind(code).first();
-  if (!referrer || referrer.user_id === userId) return { applied: false };
+  if (!referrer) {
+    // A partner business's code (vet, groomer, trainer, property manager): $10 welcome credit, no referrer reward.
+    const partner = await env.DB.prepare("SELECT code FROM partner_codes WHERE code = ? AND active = 1").bind(code).first().catch(() => null);
+    if (!partner) return { applied: false };
+    const pr = await env.DB.batch([
+      env.DB.prepare("UPDATE customer_profiles SET referred_by_code = ?, credit_cents = credit_cents + ? WHERE user_id = ? AND referred_by_code IS NULL").bind(code, REFERRAL_REWARD_CENTS, userId),
+      env.DB.prepare("UPDATE partner_codes SET signups = signups + 1 WHERE code = ? AND changes() = 1").bind(code),
+      env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'partner_code_applied', 'customer_profile', ?)").bind(crypto.randomUUID(), userId, userId)
+    ]);
+    return { applied: Boolean(pr[0]?.meta?.changes), creditCents: REFERRAL_REWARD_CENTS, partner: true };
+  }
+  if (referrer.user_id === userId) return { applied: false };
   const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM referral_rewards WHERE referrer_id = ? AND status IN ('pending','earned')").bind(referrer.user_id).first();
   if ((count?.n || 0) >= MAX_REWARDS_PER_REFERRER) return { applied: false };
   const res = await env.DB.batch([

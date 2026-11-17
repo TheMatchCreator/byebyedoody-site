@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('[da
         var b = document.createElement("div");
         b.setAttribute("role", "status");
         b.style.cssText = "background:#c9e5a5;color:#173d31;text-align:center;padding:10px 16px;font:700 15px 'DM Sans',Arial,sans-serif";
-        b.innerHTML = '🎁 A friend sent you $10 off your first cleanup! <a href="/app/" style="color:#173d31;text-decoration:underline">Book now</a>';
+        b.innerHTML = '🎁 You've got $10 off your first cleanup! <a href="/app/" style="color:#173d31;text-decoration:underline">Book now</a>';
         document.body.insertBefore(b, document.body.firstChild);
       });
     }
