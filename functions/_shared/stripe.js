@@ -65,3 +65,22 @@ export async function verifyStripeSignature(payload, header, secret, toleranceSe
   const expected = [...mac].map((b) => b.toString(16).padStart(2, "0")).join("");
   return signatures.some((sig) => sig.length === expected.length && [...sig].reduce((acc, c, i) => acc | (c.charCodeAt(0) ^ expected.charCodeAt(i)), 0) === 0);
 }
+
+// Stripe API v2 (JSON) — used for Connect Accounts v2, which Stripe requires for new platforms.
+export const STRIPE_V2_VERSION = "2026-10-28.endive";
+export async function stripeV2(env, method, path, body, idempotencyKey) {
+  const key = stripeTestKey(env);
+  if (!key) throw Object.assign(new Error("Stripe test mode is not configured."), { status: 503 });
+  const headers = { Authorization: `Bearer ${key}`, "Stripe-Version": STRIPE_V2_VERSION };
+  if (body) headers["Content-Type"] = "application/json";
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+  const res = await fetch("https://api.stripe.com/v2" + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data?.error?.message || `Stripe request failed (${res.status}).`);
+    err.status = res.status; err.code = data?.error?.code || data?.error?.type;
+    throw err;
+  }
+  if (data && data.livemode === true) throw Object.assign(new Error("Live-mode Stripe objects are refused."), { status: 503 });
+  return data;
+}

@@ -2,7 +2,7 @@
 // Stripe hosts onboarding: identity, bank and tax details never reach this site.
 import { requireUser } from "../../_shared/marketplace-auth.js";
 import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
-import { stripe, stripeTestKey } from "../../_shared/stripe.js";
+import { stripe, stripeV2, stripeTestKey } from "../../_shared/stripe.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }
@@ -28,25 +28,37 @@ export async function onRequest({ request, env }) {
   try {
     if (request.method === "GET") {
       if (!profile.stripe_account_id) return json({ connected: false, chargesEnabled: false, payoutsEnabled: false, mode: "test" });
-      const acct = await stripe(env, "GET", `/accounts/${encodeURIComponent(profile.stripe_account_id)}`);
-      const transfers = acct.capabilities?.transfers === "active";
+      // Accounts v2 status; fall back to the v1 view of the same account if needed.
+      let transfers = false, payouts = false, submitted = false;
+      try {
+        const a2 = await stripeV2(env, "GET", `/core/accounts/${encodeURIComponent(profile.stripe_account_id)}?include=configuration.recipient&include=requirements`);
+        const sb = a2?.configuration?.recipient?.capabilities?.stripe_balance || {};
+        transfers = sb.stripe_transfers?.status === "active";
+        payouts = (sb.payouts?.status || sb.stripe_transfers?.status) === "active";
+        submitted = !((a2?.requirements?.entries || []).some((e) => e.minimum_deadline?.status === "currently_due"));
+      } catch {
+        const a1 = await stripe(env, "GET", `/accounts/${encodeURIComponent(profile.stripe_account_id)}`);
+        transfers = a1.capabilities?.transfers === "active"; payouts = Boolean(a1.payouts_enabled); submitted = Boolean(a1.details_submitted);
+      }
       await env.DB.prepare("UPDATE provider_profiles SET stripe_charges_enabled = ?, stripe_payouts_enabled = ? WHERE user_id = ?")
-        .bind(transfers ? 1 : 0, acct.payouts_enabled ? 1 : 0, user.id).run();
-      return json({ connected: true, chargesEnabled: transfers, payoutsEnabled: Boolean(acct.payouts_enabled), detailsSubmitted: Boolean(acct.details_submitted), mode: "test" });
+        .bind(transfers ? 1 : 0, payouts ? 1 : 0, user.id).run();
+      return json({ connected: true, chargesEnabled: transfers, payoutsEnabled: payouts, detailsSubmitted: submitted, mode: "test" });
     }
 
     const limited = await enforceRateLimit(env, user.id, "provider_stripe_onboarding", 10, 3600);
     if (limited) return limited;
     let accountId = profile.stripe_account_id;
     if (!accountId) {
-      const acct = await stripe(env, "POST", "/accounts", {
-        type: "express",
-        country: "US",
-        email: user.email || undefined,
-        capabilities: { transfers: { requested: true } },
-        business_profile: { product_description: "Independent dog waste cleanup services" },
-        metadata: { byebyedoody_provider_id: user.id }
-      }, `bbd-acct-${user.id}`);
+      const acct = await stripeV2(env, "POST", "/core/accounts", {
+        contact_email: user.email || undefined,
+        display_name: "ByeByeDoody independent provider",
+        identity: { country: "us" },
+        dashboard: "express",
+        defaults: { responsibilities: { fees_collector: "application", losses_collector: "application" } },
+        configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
+        metadata: { byebyedoody_provider_id: user.id },
+        include: ["configuration.recipient"]
+      }, `bbd-acct-v2-${user.id}`);
       accountId = acct.id;
       await env.DB.batch([
         env.DB.prepare("UPDATE provider_profiles SET stripe_account_id = ? WHERE user_id = ? AND stripe_account_id IS NULL").bind(accountId, user.id),
@@ -54,11 +66,12 @@ export async function onRequest({ request, env }) {
       ]);
     }
     const origin = new URL(request.url).origin;
-    const link = await stripe(env, "POST", "/account_links", {
+    const link = await stripeV2(env, "POST", "/core/account_links", {
       account: accountId,
-      type: "account_onboarding",
-      refresh_url: `${origin}/app/?payouts=refresh`,
-      return_url: `${origin}/app/?payouts=done`
+      use_case: {
+        type: "account_onboarding",
+        account_onboarding: { configurations: ["recipient"], refresh_url: `${origin}/app/?payouts=refresh`, return_url: `${origin}/app/?payouts=done` }
+      }
     });
     return json({ url: link.url, mode: "test" });
   } catch (error) {
