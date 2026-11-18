@@ -3,9 +3,8 @@ const RAW = String(process.env.CLOUDFLARE_API_TOKEN || "");
 const TOKEN = (RAW.match(/[A-Za-z0-9_-]{30,}/g) || []).sort((a, b) => b.length - a.length)[0] || "";
 const ACC = "7b5e41c1cbfb0ed1280523fcebd5936c", PROJECT = "byebyedoody-site";
 const cf = async (p, o = {}) => { const r = await fetch("https://api.cloudflare.com/client/v4" + p, { ...o, headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" } }); const b = await r.json(); return { ok: r.ok && b.success !== false, result: b.result, errors: b.errors }; };
-const want = ["www.byebyedoody.com"]; // the bare domain forwards to www at Spaceship
-{ const cur = await cf(`/accounts/${ACC}/pages/projects/${PROJECT}/domains`);
-  if ((cur.result || []).some((d) => d.name === "byebyedoody.com")) { const r = await cf(`/accounts/${ACC}/pages/projects/${PROJECT}/domains/byebyedoody.com`, { method: "DELETE" }); console.log("byebyedoody.com: removed from Pages (handled by Spaceship redirect) " + (r.ok ? "ok" : JSON.stringify(r.errors))); } }
+const want = ["www.byebyedoody.com", "byebyedoody.com"]; // zone now lives in this Cloudflare account, so both attach to Pages
+// (bare domain is no longer removed: it is served by Pages now)
 const existing = await cf(`/accounts/${ACC}/pages/projects/${PROJECT}/domains`);
 const have = new Set((existing.result || []).map((d) => d.name));
 for (const name of want) {
