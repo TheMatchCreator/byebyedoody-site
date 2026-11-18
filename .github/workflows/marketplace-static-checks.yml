@@ -27,6 +27,10 @@ jobs:
             echo "Checking $file"
             node --check --input-type=module < "$file"
           done
+          for file in *.js; do
+            echo "Checking $file"
+            node --check "$file"
+          done
       - name: Verify payment mode safety checks
         shell: bash
         run: |
