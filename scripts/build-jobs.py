@@ -229,6 +229,39 @@ def index_page():
 {FOOTER}"""
 
 
+def feed_xml():
+    from xml.sax.saxutils import escape as x
+    def cdata(t):
+        return "<![CDATA[" + t.replace("]]>", "]]]]><![CDATA[>") + "]]>"
+    items = []
+    for slug, city, st, state_name, zipc, nearby in CITIES:
+        items.append(
+            "  <job>\n"
+            f"    <title>{cdata('Dog Waste Cleanup Pro (Independent Contractor)')}</title>\n"
+            f"    <date>{cdata(DATE_POSTED)}</date>\n"
+            f"    <expiration_date>{cdata(VALID_THROUGH[:10])}</expiration_date>\n"
+            f"    <referencenumber>{cdata('BBD-PRO-' + slug.upper())}</referencenumber>\n"
+            f"    <requisitionid>{cdata('BBD-PRO-' + slug.upper())}</requisitionid>\n"
+            f"    <url>{cdata(SITE + '/jobs/' + slug)}</url>\n"
+            f"    <company>{cdata('ByeByeDoody')}</company>\n"
+            f"    <sourcename>{cdata('ByeByeDoody')}</sourcename>\n"
+            f"    <city>{cdata(city)}</city>\n"
+            f"    <state>{cdata(st)}</state>\n"
+            f"    <country>{cdata('US')}</country>\n"
+            f"    <postalcode>{cdata(zipc)}</postalcode>\n"
+            f"    <email>{cdata('byebyedoody123@aol.com')}</email>\n"
+            f"    <description>{cdata(job_description_html(label(city, st), nearby))}</description>\n"
+            f"    <salary>{cdata('Per job, set by you. Price guide: about $15-$45 per weekly visit, $35-$95 per one-time cleanup')}</salary>\n"
+            f"    <jobtype>{cdata('contract')}</jobtype>\n"
+            f"    <category>{cdata('Pet Services')}</category>\n"
+            f"    <remotetype>{cdata('')}</remotetype>\n"
+            "  </job>"
+        )
+    return ('<?xml version="1.0" encoding="utf-8"?>\n<source>\n'
+            f"  <publisher>ByeByeDoody</publisher>\n  <publisherurl>{SITE}</publisherurl>\n"
+            f"  <lastBuildDate>{DATE_POSTED}</lastBuildDate>\n" + "\n".join(items) + "\n</source>\n")
+
+
 def update_sitemap():
     path = ROOT / "sitemap.xml"
     xml = path.read_text()
@@ -245,6 +278,7 @@ def main():
     (out / "index.html").write_text(index_page())
     for c in CITIES:
         (out / f"{c[0]}.html").write_text(city_page(*c))
+    (out / "feed.xml").write_text(feed_xml())
     update_sitemap()
     print(f"Wrote {len(CITIES)} city pages + index")
 
