@@ -35,10 +35,10 @@ export async function onRequestPost({ request, env }) {
     job = { serviceType, dogCount, yardSize };
   }
   const s = await suggestPrice(env, job);
-  // ByeByeDoody's fee is 20% of the customer's total: total = provider rate / 0.8.
+  // ByeByeDoody's fee is 15% of the customer's total: total = provider rate / 0.85.
   const withFee = (c) => feeBreakdown(c);
   return json({ ...s, perVisit: job.serviceType !== "one_time",
     customerTotal: { suggestedCents: withFee(s.suggestedCents).customerTotalCents, lowCents: withFee(s.lowCents).customerTotalCents, highCents: withFee(s.highCents).customerTotalCents },
     platformFeeOnSuggestedCents: withFee(s.suggestedCents).platformFeeCents,
-    feeNote: "ByeByeDoody's platform fee is 20% of the customer's total. The provider keeps their full rate." });
+    feeNote: "ByeByeDoody's platform fee is 15% of the customer's total. The provider keeps their full rate." });
 }

@@ -91,7 +91,7 @@
       if (btn) btn.disabled = true;
       const pr = job ? await call("/api/marketplace/price-suggestion", { method: "POST", body: JSON.stringify({ serviceType, dogCount: Number(job.dogs), yardSize: job.yard }) }) : null;
       const total = pr ? pr.customerTotal.suggestedCents : null;
-      if (!window.confirm((makeWeekly ? "Start weekly service" : "Book this cleanup again") + (total ? " for " + money(total) + (serviceType === "one_time" ? "" : " per visit") + " total (includes ByeByeDoody's 20% platform fee)" : "") + "?\n\nSame address and details. You only pay after a local pro accepts.")) { if (btn) btn.disabled = false; return; }
+      if (!window.confirm((makeWeekly ? "Start weekly service" : "Book this cleanup again") + (total ? " for " + money(total) + (serviceType === "one_time" ? "" : " per visit") + " total (includes ByeByeDoody's 15% platform fee)" : "") + "?\n\nSame address and details. You only pay after a local pro accepts.")) { if (btn) btn.disabled = false; return; }
       const r = await call("/api/marketplace/rebook", { method: "POST", body: JSON.stringify({ requestId, makeWeekly, instantRateCents: pr ? pr.suggestedCents : undefined }) });
       box.insertAdjacentHTML("afterbegin", `<p class="portal-notice">${esc(r.message)}</p>`);
       box.scrollIntoView({ behavior: "smooth" });

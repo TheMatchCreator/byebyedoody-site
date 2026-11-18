@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Builds /areas/*.html local service pages, /areas/index.html, sitemap.xml and robots.txt.
-Re-run after editing AREAS. Prices are customer totals including ByeByeDoody's 20% platform fee."""
+Re-run after editing AREAS. Prices are customer totals including ByeByeDoody's 15% platform fee."""
 import json, html, datetime, pathlib
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SITE = "https://www.byebyedoody.com"
@@ -23,7 +23,7 @@ AREAS = [
   ("davis", "Davis", ["95616","95618"], "Throughout Davis"),
 ]
 def money(c): return f"${c/100:,.0f}"
-def total(rate_dollars): return -(-rate_dollars*10000//8000)  # cents ceil of rate/0.8 in cents
+def total(rate_dollars): return -(-rate_dollars*10000//8500)  # cents ceil of rate/0.85 in cents
 ONE = (total(3600), total(6900))      # one-time, 1-3 dogs, small-large yard (customer total)
 WEEK = (total(1400), total(3200))     # weekly per visit
 HEAD = '''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="{desc}"><title>{title}</title><link rel="canonical" href="{url}"><link rel="stylesheet" href="/styles.css"><script defer src="/site.js"></script>{ld}</head><body>
@@ -35,7 +35,7 @@ FOOT = '''</main>
 def page(slug, city, zips, where):
     url = f"{SITE}/areas/{slug}"  # Cloudflare Pages serves pages without .html
     faq = [
-      (f"How much does dog poop cleanup cost in {city}?", f"Independent providers set their own prices. Typical totals in the Sacramento area are about {money(ONE[0])}–{money(ONE[1])} for a one-time cleanup and {money(WEEK[0])}–{money(WEEK[1])} per visit for weekly service, depending on yard size and number of dogs. The total you pay includes ByeByeDoody's platform fee (20% of the total), shown before you pay."),
+      (f"How much does dog poop cleanup cost in {city}?", f"Independent providers set their own prices. Typical totals in the Sacramento area are about {money(ONE[0])}–{money(ONE[1])} for a one-time cleanup and {money(WEEK[0])}–{money(WEEK[1])} per visit for weekly service, depending on yard size and number of dogs. The total you pay includes ByeByeDoody's platform fee (15% of the total), shown before you pay."),
       (f"How fast can I get a cleanup in {city}?", "As soon as you post a request, approved providers who serve your ZIP code get an instant alert and can send you quotes. You choose the quote you like."),
       ("Do I need to be home?", "Usually not, as long as the provider can safely reach the yard and pets are secured. Add gate codes or pet notes in your request; they are encrypted and only shown to the provider after you pay for that job."),
       (f"How can I find dog-waste cleanup work in {city}?", f"Independent cleanup businesses can apply in the ByeByeDoody account portal, add {city} ZIP codes ({', '.join(zips[:4])}{'…' if len(zips)>4 else ''}) and turn on instant job alerts. You set your own prices and choose which jobs to take."),
@@ -50,7 +50,7 @@ def page(slug, city, zips, where):
 <h2>How it works in {e(city)}</h2>
 <div class="steps"><article><span>01</span><h3>Post your yard</h3><p>Tell us your ZIP code, number of dogs, yard size and how often. Not sure of the price? Tap “Estimate my price” for an AI estimate.</p></article><article><span>02</span><h3>Get quotes fast</h3><p>Approved providers serving your ZIP get an instant alert and send their own quotes.</p></article><article><span>03</span><h3>Pay and track</h3><p>Pay through Stripe once a provider accepts. On cleanup day, see when your provider is on the way.</p></article></div>
 <h2>Areas we cover</h2><p>{e(where)}. ZIP codes: {e(", ".join(zips))}. Don't see yours? Post a request anyway — providers expand their areas as demand grows.</p>
-<h2>Typical prices</h2><p>One-time cleanup: about {money(ONE[0])}–{money(ONE[1])}. Weekly service: about {money(WEEK[0])}–{money(WEEK[1])} per visit. Each provider sets their own price; totals include ByeByeDoody's platform fee (20% of the total), always shown before you pay.</p>
+<h2>Typical prices</h2><p>One-time cleanup: about {money(ONE[0])}–{money(ONE[1])}. Weekly service: about {money(WEEK[0])}–{money(WEEK[1])} per visit. Each provider sets their own price; totals include ByeByeDoody's platform fee (15% of the total), always shown before you pay.</p>
 <h2 id="providers">Get dog-waste cleanup jobs in {e(city)}</h2><p>Run your own cleanup business? Apply in the <a class="text-link" href="/app/?join=provider">account portal</a>, add your {e(city)} ZIP codes, and turn on instant job alerts. Use the AI price helper to quote fast. You keep your full quoted rate, set your own hours, and take only the jobs you want. Payouts go straight to your bank through Stripe.</p>
 <h2>Questions</h2>{"".join(f"<h3>{e(q)}</h3><p>{e(a)}</p>" for q,a in faq)}
 <p><a class="button button-dark" href="/app/">Book a cleanup in {e(city)}</a></p>

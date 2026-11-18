@@ -77,12 +77,13 @@ The marketplace is not yet a live booking or dispatch system.
 
 ## Payments — Stripe test mode (owner-approved 2026-11-16)
 
-- Funds flow: Stripe Connect **Express** destination charges. The customer pays the provider's independently set rate plus a separately disclosed **platform fee equal to 20% of the customer total** (e.g. $30 rate → $37.50 total, $7.50 fee). The provider receives their full rate.
+- Funds flow: Stripe Connect **Express** destination charges. The customer pays the provider's independently set rate plus a separately disclosed **platform fee equal to 15% of the customer total** (e.g. $30 rate → $35.30 total, $5.30 fee; lowered from 20% at the owner's request on 2026-11-18). The provider receives their full rate.
 - **Test mode only.** `functions/_shared/stripe.js` refuses any key that is not `sk_test_`/`rk_test_`, the webhook ignores live-mode events, and the setup script refuses live keys. Going live needs the legal review and a separate owner approval.
 - `functions/api/marketplace/payments-connect.js` — approved providers start/continue Stripe-hosted payout onboarding.
 - `functions/api/marketplace/payments-checkout.js` — customers see an itemized price for provider-accepted jobs and pay through Stripe Checkout after acknowledging the fee.
 - `functions/api/stripe-webhook.js` — signature-verified; records each paid session once in `payment_ledger`.
 - `migrations/0008_stripe_test_payments.sql` — replaces the unused 25%-fee draft `referrals` table with the 20%-of-total design and adds provider Stripe account fields.
+- `migrations/0016_platform_fee_15pct.sql` — rebuilds `referrals` so its checks accept the 15% fee (any rate from 0–50%, still enforcing total = rate + fee = ceil(rate / (1 − fee rate))); existing 20% rows and every linked row are kept. Unpaid jobs whose checkout was opened at 20% are re-priced at 15% the next time the customer pays.
 - Setup: add the repository secret `STRIPE_SECRET_KEY` (a **test** secret key) and run the "Set up ByeByeDoody development marketplace" workflow; it stores the key and a newly created webhook secret in the Pages preview environment.
 
 ## Required before marketplace launch

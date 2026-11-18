@@ -11,9 +11,9 @@ How it works for CUSTOMERS:
 1. Sign in at www.byebyedoody.com/app/ with email or "Continue with Google".
 2. Go to "Service requests" and submit a request: ZIP code, address, how often (one-time, weekly, twice weekly), number of dogs, yard size. The address and notes are encrypted and only shown to a provider after the customer pays for that job.
 3. FASTEST: choose "⚡ Book now" — you see the full price up front, local pros get the job live, and the first one to accept takes it; then "Pay now" appears at the top of the page. Or choose "Compare quotes" and approved providers who serve that ZIP send their own quotes. Customers see quotes under "Quotes" and invite the one they like.
-4. When the provider accepts, the customer pays in "Pay for accepted jobs" through Stripe: the provider's rate plus ByeByeDoody's platform fee, which is 20% of the total. Card details go to Stripe only.
+4. When the provider accepts, the customer pays in "Pay for accepted jobs" through Stripe: the provider's rate plus ByeByeDoody's platform fee, which is 15% of the total. Card details go to Stripe only.
 5. On the job day the provider can tap "On my way" and share their location until they arrive, so the customer can see they are coming in "My jobs". The provider marks the job done.
-Typical prices (customer total, including the fee): one-time cleanup roughly $45-$90 depending on yard size and number of dogs; weekly service roughly $18-$40 per visit. Final prices are set by each provider.
+Typical prices (customer total, including the fee): one-time cleanup roughly $42-$81 depending on yard size and number of dogs; weekly service roughly $16-$38 per visit. Final prices are set by each provider.
 
 How it works for PROVIDERS (independent businesses, not employees):
 Pros anywhere in the US can apply free. City job pages (New York, Los Angeles, Chicago, Dallas, Houston, Atlanta, Phoenix, Seattle, Denver and more) are at www.byebyedoody.com/jobs/.

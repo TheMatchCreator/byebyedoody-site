@@ -134,7 +134,7 @@ export async function onRequest({ request, env, waitUntil }) {
       const fb = feeBreakdown(instantRate);
       return json({ ok: true, instant: true, request: { id, zip, serviceType, dogCount: dogs, yardSize, status: "submitted" },
         price: { providerRateCents: fb.providerRateCents, platformFeeCents: fb.platformFeeCents, customerTotalCents: fb.customerTotalCents },
-        message: `Your job is live! Local pros near ${zip} were alerted. The first one to accept gets it, and you'll see "Pay now" at the top of this page. Price: ${(fb.customerTotalCents / 100).toFixed(2)} total including ByeByeDoody's 20% platform fee.` }, 201);
+        message: `Your job is live! Local pros near ${zip} were alerted. The first one to accept gets it, and you'll see "Pay now" at the top of this page. Price: ${(fb.customerTotalCents / 100).toFixed(2)} total including ByeByeDoody's 15% platform fee.` }, 201);
     }
     return json({ ok: true, request: { id, zip, serviceType, dogCount: dogs, yardSize, status: "submitted" },
       estimate: { lowCents: feeBreakdown(g.lowCents).customerTotalCents, highCents: feeBreakdown(g.highCents).customerTotalCents, perVisit: serviceType !== "one_time", includesPlatformFee: true },

@@ -39,5 +39,5 @@ export async function onRequestPost({ request, env, waitUntil }) {
   if (typeof waitUntil === "function") waitUntil(alerts); else await alerts;
   const fb = feeBreakdown(rate);
   return json({ ok: true, requestId: id, customerTotalCents: fb.customerTotalCents,
-    message: `Booked again! Local pros were alerted; you'll see "Pay now" as soon as one accepts. ${(fb.customerTotalCents / 100).toFixed(2)} total${serviceType === "one_time" ? "" : " per visit"}, including ByeByeDoody's 20% fee.` }, 201);
+    message: `Booked again! Local pros were alerted; you'll see "Pay now" as soon as one accepts. ${(fb.customerTotalCents / 100).toFixed(2)} total${serviceType === "one_time" ? "" : " per visit"}, including ByeByeDoody's 15% fee.` }, 201);
 }

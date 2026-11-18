@@ -64,7 +64,7 @@ export async function alertProvidersForRequest(env, request, siteOrigin) {
       text: `A customer in ZIP ${request.zip} wants a cleanup now and already agreed to the price.
 
 Job: ${SERVICE[request.serviceType] || "Cleanup"}, ${request.dogCount} dog(s), ${request.yardSize} yard.
-You'd receive: $${(request.instantRateCents / 100).toFixed(2)} (your full rate; the customer pays ByeByeDoody's 20% fee on top).
+You'd receive: $${(request.instantRateCents / 100).toFixed(2)} (your full rate; the customer pays ByeByeDoody's 15% fee on top).
 
 Want it? Open ${link} and tap "Accept" under Live jobs. The first pro to accept gets it. Not interested? Just ignore this email, no penalty.
 ByeByeDoody`
@@ -75,7 +75,7 @@ ByeByeDoody`
 
 Job: ${SERVICE[request.serviceType] || "Cleanup"}, ${request.dogCount} dog(s), ${request.yardSize} yard.
 If the customer picks you, you'll get an invitation to accept or decline. You can also withdraw the quote in Quotes, or turn auto-quote off in Provider tools.
-You keep your full quoted rate. The customer pays your rate plus ByeByeDoody's platform fee (20% of their total).
+You keep your full quoted rate. The customer pays your rate plus ByeByeDoody's platform fee (15% of their total).
 
 Open your account: ${link}
 ByeByeDoody`
@@ -89,7 +89,7 @@ Typical local price for a job like this: $${g.lowCents / 100}-$${g.highCents / 1
 
 Want it? Open your ByeByeDoody account, go to Provider tools > Find requests, and send your own quote: ${link}
 The first quotes usually get picked. You set your own price and you are free to skip any job.
-You keep your full quoted rate. The customer pays your rate plus ByeByeDoody's platform fee (20% of their total).
+You keep your full quoted rate. The customer pays your rate plus ByeByeDoody's platform fee (15% of their total).
 
 You get these emails because you turned on job alerts. Turn them off any time in Provider tools.
 ByeByeDoody`

@@ -4,13 +4,14 @@
 // refused in test mode and a test key is refused in live mode, and Stripe objects must match.
 // Owner-approved funds flow (2026-11-16): destination charges through Stripe Connect
 // Express. The customer pays the provider's independently set rate plus a separately
-// disclosed platform fee equal to 20% of the customer total; the provider receives
-// their full rate. Card details never touch this site (Stripe Checkout collects them).
+// disclosed platform fee equal to 15% of the customer total (lowered from 20% at the
+// owner's request on 2026-11-18); the provider receives their full rate. Card details never touch this site (Stripe Checkout collects them).
 
-export const PLATFORM_FEE_BASIS_POINTS = 2000; // 20% of the customer total
-export const FEE_DISCLOSURE_VERSION = "fee_20pct_of_total_v1";
+export const PLATFORM_FEE_BASIS_POINTS = 1500; // 15% of the customer total
+export const FEE_DISCLOSURE_VERSION = "fee_15pct_of_total_v1";
+export const PLATFORM_FEE_PERCENT_LABEL = `${PLATFORM_FEE_BASIS_POINTS / 100}%`;
 
-// Customer total = provider rate / (1 - 20%), rounded up to the next cent.
+// Customer total = provider rate / (1 - 15%), rounded up to the next cent.
 export function feeBreakdown(providerRateCents) {
   const provider = Number(providerRateCents);
   if (!Number.isInteger(provider) || provider <= 0) throw new Error("invalid_rate");

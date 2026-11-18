@@ -174,7 +174,7 @@
       try {
         const r = await api("/api/marketplace/price-suggestion", { method: "POST", body: JSON.stringify({ requestId }) });
         form.elements.rate.value = (r.suggestedCents / 100).toFixed(2);
-        out.textContent = "Suggested: " + usd(r.suggestedCents) + (r.perVisit ? " per visit" : "") + " (typical " + usd(r.lowCents) + "–" + usd(r.highCents) + "). " + r.reason + " The customer would pay " + usd(r.customerTotal.suggestedCents) + " total; ByeByeDoody's fee is 20% of that total and you keep your full rate. You can change the price.";
+        out.textContent = "Suggested: " + usd(r.suggestedCents) + (r.perVisit ? " per visit" : "") + " (typical " + usd(r.lowCents) + "–" + usd(r.highCents) + "). " + r.reason + " The customer would pay " + usd(r.customerTotal.suggestedCents) + " total; ByeByeDoody's fee is 15% of that total and you keep your full rate. You can change the price.";
       } catch (e) { out.textContent = e.message; }
       priceBtn.disabled = false;
     });
@@ -184,7 +184,7 @@
       estBtn.disabled = true; out.textContent = "Estimating…";
       try {
         const r = await api("/api/marketplace/price-suggestion", { method: "POST", body: JSON.stringify({ serviceType: form.elements.serviceType.value, dogCount: Number(form.elements.dogCount.value), yardSize: form.elements.yardSize.value }) });
-        out.textContent = "Estimated total: " + usd(r.customerTotal.lowCents) + "–" + usd(r.customerTotal.highCents) + (r.perVisit ? " per visit" : "") + ", including ByeByeDoody's platform fee (20% of the total). Providers set their own final prices.";
+        out.textContent = "Estimated total: " + usd(r.customerTotal.lowCents) + "–" + usd(r.customerTotal.highCents) + (r.perVisit ? " per visit" : "") + ", including ByeByeDoody's platform fee (15% of the total). Providers set their own final prices.";
       } catch (e) { out.textContent = e.message; }
       estBtn.disabled = false;
     });
@@ -256,7 +256,7 @@
         data.dogCount = Number(data.dogCount); data.consent = form.elements.consent.checked; data.matchingConsent = form.elements.matchingConsent.checked; data.reminders = form.elements.reminders ? form.elements.reminders.checked : false;
         if (data.bookingMode === "instant") {
           const pr = await api("/api/marketplace/price-suggestion", { method: "POST", body: JSON.stringify({ serviceType: data.serviceType, dogCount: data.dogCount, yardSize: data.yardSize }) });
-          if (!window.confirm("Book now for " + usd(pr.customerTotal.suggestedCents) + (pr.perVisit ? " per visit" : "") + " total?\n\nThat's " + usd(pr.suggestedCents) + " for your local pro plus ByeByeDoody's platform fee of " + usd(pr.platformFeeOnSuggestedCents) + " (20% of the total). You only pay after a pro accepts.")) return;
+          if (!window.confirm("Book now for " + usd(pr.customerTotal.suggestedCents) + (pr.perVisit ? " per visit" : "") + " total?\n\nThat's " + usd(pr.suggestedCents) + " for your local pro plus ByeByeDoody's platform fee of " + usd(pr.platformFeeOnSuggestedCents) + " (15% of the total). You only pay after a pro accepts.")) return;
           data.instantRateCents = pr.suggestedCents;
         }
         const result = await api("/api/marketplace/requests", { method:"POST", body:JSON.stringify(data) });

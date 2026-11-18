@@ -2,10 +2,10 @@
 // GET  -> the customer's accepted referrals with the itemized price and payment status.
 // POST -> { invitationId, feeAcknowledged: true } creates (or reuses) a Checkout Session.
 // Destination charge: the provider's full rate is transferred to their Connect account;
-// the separately disclosed 20%-of-total platform fee stays with ByeByeDoody.
+// the separately disclosed 15%-of-total platform fee stays with ByeByeDoody.
 import { requireUser } from "../../_shared/marketplace-auth.js";
 import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
-import { stripe, paymentsMode, stripeKey, feeBreakdown, PLATFORM_FEE_BASIS_POINTS, FEE_DISCLOSURE_VERSION } from "../../_shared/stripe.js";
+import { stripe, paymentsMode, stripeKey, feeBreakdown, PLATFORM_FEE_BASIS_POINTS, FEE_DISCLOSURE_VERSION, PLATFORM_FEE_PERCENT_LABEL } from "../../_shared/stripe.js";
 import { availableCredit } from "../../_shared/perks.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -37,7 +37,7 @@ export async function onRequest({ request, env }) {
        ORDER BY i.responded_at DESC LIMIT 25`).bind(user.id).all()).results || [];
     return json({
       mode: stripeKey(env) ? paymentsMode(env) : "not_configured",
-      feeDisclosure: "ByeByeDoody adds a separately disclosed platform fee equal to 20% of your total. Your provider receives their full quoted rate.",
+      feeDisclosure: `ByeByeDoody adds a separately disclosed platform fee equal to ${PLATFORM_FEE_PERCENT_LABEL} of your total. Your provider receives their full quoted rate.`,
       creditCents: await availableCredit(env, user.id),
       jobs: rows.map((row) => ({
         invitationId: row.invitation_id,
@@ -75,8 +75,24 @@ export async function onRequest({ request, env }) {
 
   const amounts = feeBreakdown(inv.provider_service_rate_cents);
   try {
-    let referral = await env.DB.prepare("SELECT id, payment_status, stripe_checkout_session_id FROM referrals WHERE invitation_id = ?").bind(inv.id).first();
+    let referral = await env.DB.prepare("SELECT id, payment_status, stripe_checkout_session_id, platform_fee_rate_basis_points FROM referrals WHERE invitation_id = ?").bind(inv.id).first();
     if (referral?.payment_status === "paid") return json({ error: "This job is already paid." }, 409);
+    if (referral && referral.platform_fee_rate_basis_points !== PLATFORM_FEE_BASIS_POINTS) {
+      // The platform fee changed after this job's checkout was first opened (20% -> 15% on 2026-11-18).
+      // Never reuse a checkout page priced at the old fee: close it, then re-price the unpaid job at the
+      // current fee. The customer has just re-acknowledged the itemized price shown at the current fee.
+      if (referral.stripe_checkout_session_id) {
+        const old = await stripe(env, "GET", `/checkout/sessions/${encodeURIComponent(referral.stripe_checkout_session_id)}`);
+        if (old.status === "complete") return json({ error: "Payment is already being processed for this job." }, 409);
+        if (old.status === "open") await stripe(env, "POST", `/checkout/sessions/${encodeURIComponent(referral.stripe_checkout_session_id)}/expire`, {});
+      }
+      await env.DB.prepare(`UPDATE referrals SET customer_total_cents = ?, provider_rate_cents = ?, platform_fee_cents = ?, platform_fee_rate_basis_points = ?,
+          fee_disclosure_version = ?, customer_fee_acknowledged_at = CURRENT_TIMESTAMP, stripe_checkout_session_id = NULL, payment_status = 'unpaid'
+        WHERE id = ? AND payment_status <> 'paid'`)
+        .bind(amounts.customerTotalCents, amounts.providerRateCents, amounts.platformFeeCents, PLATFORM_FEE_BASIS_POINTS, FEE_DISCLOSURE_VERSION, referral.id).run();
+      referral = await env.DB.prepare("SELECT id, payment_status, stripe_checkout_session_id, platform_fee_rate_basis_points FROM referrals WHERE invitation_id = ?").bind(inv.id).first();
+      if (referral?.payment_status === "paid") return json({ error: "This job is already paid." }, 409);
+    }
     if (!referral) {
       const id = crypto.randomUUID();
       await env.DB.batch([
@@ -87,7 +103,7 @@ export async function onRequest({ request, env }) {
             amounts.platformFeeCents, PLATFORM_FEE_BASIS_POINTS, FEE_DISCLOSURE_VERSION),
         env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'customer_fee_acknowledged', 'referral_invitation', ?)").bind(crypto.randomUUID(), user.id, inv.id)
       ]);
-      referral = await env.DB.prepare("SELECT id, payment_status, stripe_checkout_session_id FROM referrals WHERE invitation_id = ?").bind(inv.id).first();
+      referral = await env.DB.prepare("SELECT id, payment_status, stripe_checkout_session_id, platform_fee_rate_basis_points FROM referrals WHERE invitation_id = ?").bind(inv.id).first();
     }
     if (referral.stripe_checkout_session_id) {
       const existing = await stripe(env, "GET", `/checkout/sessions/${encodeURIComponent(referral.stripe_checkout_session_id)}`);
@@ -102,7 +118,7 @@ export async function onRequest({ request, env }) {
     const lineItems = [
       { quantity: 1, price_data: { currency: "usd", unit_amount: amounts.providerRateCents, product_data: { name: `${SERVICE_LABEL[inv.service_type] || "Dog waste"} cleanup (independent provider's rate)` } } }
     ];
-    if (feeCharged > 0) lineItems.push({ quantity: 1, price_data: { currency: "usd", unit_amount: feeCharged, product_data: { name: credit ? `ByeByeDoody platform fee (20% of total, after $${(credit / 100).toFixed(2)} referral credit)` : "ByeByeDoody platform fee (20% of total)" } } });
+    if (feeCharged > 0) lineItems.push({ quantity: 1, price_data: { currency: "usd", unit_amount: feeCharged, product_data: { name: credit ? `ByeByeDoody platform fee (${PLATFORM_FEE_PERCENT_LABEL} of total, after $${(credit / 100).toFixed(2)} referral credit)` : `ByeByeDoody platform fee (${PLATFORM_FEE_PERCENT_LABEL} of total)` } } });
     const origin = new URL(request.url).origin;
     const session = await stripe(env, "POST", "/checkout/sessions", {
       mode: "payment",

@@ -41,6 +41,8 @@ jobs:
           grep -q '(sk|rk)_live_' functions/_shared/stripe.js
           grep -q 'event.livemode !== (paymentsMode(env) === "live")' functions/api/stripe-webhook.js
           grep -q 'CHECK (platform_fee_rate_basis_points = 2000)' migrations/0008_stripe_test_payments.sql
+          grep -q 'CHECK (platform_fee_rate_basis_points BETWEEN 0 AND 5000)' migrations/0016_platform_fee_15pct.sql
+          grep -q 'PLATFORM_FEE_BASIS_POINTS = 1500' functions/_shared/stripe.js
           grep -q 'api_rate_limits' migrations/0006_api_rate_limits.sql
           grep -q 'matching_consent_at' migrations/0003_matching_consent.sql
           grep -q 'customer_fee_acknowledged_at' migrations/0001_marketplace_foundation.sql

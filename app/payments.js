@@ -57,7 +57,7 @@
         <div class="portal-result-row">
           <b>${esc(j.service)} cleanup · ZIP ${esc(j.zip)} · ${esc(j.provider)}</b>
           <span>Provider's rate: ${money(j.providerRateCents)}</span>
-          <span>ByeByeDoody platform fee (20% of total): ${money(j.platformFeeCents)}</span>
+          <span>ByeByeDoody platform fee (15% of total): ${money(j.platformFeeCents)}</span>
           <span class="portal-muted">Paid securely through Stripe. Card details are never stored by ByeByeDoody.</span>
           <span><b>Total: ${money(j.customerTotalCents)}</b></span>
           ${j.paymentStatus === "paid" ? `<span><b>Paid</b> ${esc(j.paidAt || "")}</span>`
