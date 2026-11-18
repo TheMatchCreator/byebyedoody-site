@@ -15,7 +15,7 @@
     return data;
   }
   function render(d, note) {
-    const msg = `Hey! I use ByeByeDoody for dog poop cleanup in the Sacramento area. Book a local pro in 2 minutes and get ${money(d.rewardCents)} off your first cleanup with my link: ${d.link}`;
+    const msg = `Hey! I use ByeByeDoody for dog poop cleanup. Book a local pro in 2 minutes and get ${money(d.rewardCents)} off your first cleanup with my link: ${d.link}`;
     box.innerHTML = `<h2>🎁 Give ${money(d.rewardCents)}, get ${money(d.rewardCents)}</h2>
       <p>Share your link. Friends get <b>${money(d.rewardCents)} off</b> their first cleanup, and you get <b>${money(d.rewardCents)}</b> when their first job is paid. Credits come off ByeByeDoody's fee, so pros still get their full rate.</p>
       <p><b>Your credit: ${money(d.creditCents)}</b>${d.friendsJoined ? ` · Friends joined: ${d.friendsJoined} · booked: ${d.friendsBooked}` : ""}</p>

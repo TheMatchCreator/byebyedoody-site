@@ -17,7 +17,7 @@ export async function runAI(env, messages, { models = CHAT_MODELS, maxTokens = 4
 }
 
 const LABEL = { one_time: "one-time cleanup", weekly: "weekly service (price per visit)", twice_weekly: "twice-weekly service (price per visit)", custom: "custom schedule (price per visit)" };
-// Sacramento-area market guide used as guard rails for the AI suggestion (USD).
+// US market guide used as guard rails for the AI suggestion (USD). Providers always set their own final price.
 export function priceGuide({ serviceType, dogCount, yardSize }) {
   const base = { one_time: 45, weekly: 18, twice_weekly: 15, custom: 25 }[serviceType] ?? 25;
   const perDog = serviceType === "one_time" ? 10 : 4;
@@ -29,7 +29,7 @@ export function priceGuide({ serviceType, dogCount, yardSize }) {
 
 export async function suggestPrice(env, job) {
   const g = priceGuide(job);
-  const prompt = `Suggest one fair price in US dollars for an independent dog-waste cleanup provider in the Sacramento, California area.
+  const prompt = `Suggest one fair price in US dollars for an independent dog-waste cleanup provider in a typical US metro area.
 Job: ${g.label}; ${job.dogCount} dog(s); yard size: ${job.yardSize}.
 Local market range for this job: $${g.lowCents / 100} to $${g.highCents / 100}.
 Reply with JSON only: {"price": <whole dollars within the range>, "reason": "<one short sentence for the provider>"}`;
@@ -37,7 +37,7 @@ Reply with JSON only: {"price": <whole dollars within the range>, "reason": "<on
     { role: "system", content: "You help independent service providers price jobs fairly. Always answer with compact JSON only." },
     { role: "user", content: prompt }
   ], { models: CHAT_MODELS, maxTokens: 150, temperature: 0.2 });
-  let price = g.midCents / 100, reason = "Based on typical Sacramento-area prices for this yard size and number of dogs.", source = "guide";
+  let price = g.midCents / 100, reason = "Based on typical US prices for this yard size and number of dogs.", source = "guide";
   if (ai) {
     try {
       const m = ai.text.match(/\{[\s\S]*\}/);
