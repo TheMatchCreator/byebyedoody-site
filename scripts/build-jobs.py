@@ -89,6 +89,7 @@ def job_description_html(city_label, nearby):
         "<li>Independent contractor role, not employment. You set your own prices and hours.</li>"
         "<li>Get instant email alerts for new requests in your ZIP codes. Quote in seconds with an AI price suggestion.</li>"
         "<li>You keep your full quoted rate. Customers pay a 20% platform fee on top.</li>"
+        "<li>Pay is per job and set by you. Our price guide suggests about $15–$45 per weekly visit and $35–$95 per one-time cleanup, depending on dogs and yard size.</li>"
         "<li>Payouts go through Stripe straight to your bank.</li></ul>"
         "<p><strong>What you need</strong></p><ul>"
         "<li>Your own small cleanup business (a sole proprietorship is fine) and any local registration that applies.</li>"
@@ -176,7 +177,7 @@ def city_page(slug, city, st, state_name, zipc, nearby):
 <article><span>02</span><h3>Get instant job alerts</h3><p>When a customer in one of your ZIP codes posts a request, you get an email right away.</p></article>
 <article><span>03</span><h3>Quote your own price</h3><p>Use the AI price suggestion or your own number. Customers compare quotes and book online.</p></article>
 <article><span>04</span><h3>Clean the yard</h3><p>After the customer pays you see the address and notes. Bag the waste, close the gate, mark the job done.</p></article>
-<article><span>05</span><h3>Get paid</h3><p>Your full quoted rate goes to your bank through Stripe. The customer pays the 20% platform fee on top.</p></article>
+<article><span>05</span><h3>Get paid</h3><p>Your full quoted rate goes to your bank through Stripe. The customer pays the 20% platform fee on top. Our price guide suggests about $15–$45 per weekly visit and $35–$95 per one-time cleanup.</p></article>
 <article><span>06</span><h3>Build weekly routes</h3><p>Weekly and twice-weekly customers turn one-off jobs into a steady route you control.</p></article>
 </div></section>
 <section class="section"><div class="narrow">
