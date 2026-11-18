@@ -239,6 +239,7 @@ def feed_xml():
             "  <job>\n"
             f"    <title>{cdata('Dog Waste Cleanup Pro (Independent Contractor)')}</title>\n"
             f"    <date>{cdata(DATE_POSTED)}</date>\n"
+            f"    <dateposted>{cdata(DATE_POSTED)}</dateposted>\n"
             f"    <expiration_date>{cdata(VALID_THROUGH[:10])}</expiration_date>\n"
             f"    <referencenumber>{cdata('BBD-PRO-' + slug.upper())}</referencenumber>\n"
             f"    <requisitionid>{cdata('BBD-PRO-' + slug.upper())}</requisitionid>\n"
