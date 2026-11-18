@@ -62,7 +62,7 @@ HEADER = """<header class="site-header">
 
 FOOTER = """<footer class="footer">
 <a class="brand brand-footer" href="/"><span class="brand-mark">B</span><span>ByeBye<span class="brand-accent">Doody</span><small>Yard cleanup made easy</small></span></a>
-<div class="footer-links"><a href="/">Home</a><a href="/services.html">Services</a><a href="/jobs/">Cleanup jobs</a><a href="/areas/">Service areas</a><a href="/marketplace/">Marketplace</a><a href="/contact.html">Contact</a><a href="/privacy.html">Privacy</a><a href="https://www.facebook.com/byebyedoody" rel="noopener">Facebook</a><a href="mailto:byebyedoody123@aol.com">Email us</a></div>
+<div class="footer-links"><a href="/">Home</a><a href="/services.html">Services</a><a href="/jobs/">Cleanup jobs</a><a href="/areas/">Service areas</a><a href="/marketplace/">Marketplace</a><a href="/contact.html">Contact</a><a href="/privacy.html">Privacy</a><a href="https://www.facebook.com/byebyedoody" rel="noopener">Facebook</a><a href="https://nextdoor.com/page/byebyedoody-sacramento-ca" rel="noopener">Nextdoor</a><a href="mailto:byebyedoody123@aol.com">Email us</a></div>
 <p>© <span data-year></span> ByeByeDoody. All rights reserved.</p>
 </footer>
 <script defer src="/assistant.js?v=1"></script></body></html>"""
@@ -116,7 +116,7 @@ def job_jsonld(slug, city, st, state_name, zipc, nearby):
         "hiringOrganization": {
             "@type": "Organization",
             "name": "ByeByeDoody",
-            "sameAs": [SITE, "https://www.facebook.com/byebyedoody"],
+            "sameAs": [SITE, "https://www.facebook.com/byebyedoody", "https://nextdoor.com/page/byebyedoody-sacramento-ca"],
             "logo": f"{SITE}/logo.png",
         },
         "jobLocation": {
