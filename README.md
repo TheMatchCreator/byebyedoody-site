@@ -86,6 +86,27 @@ The marketplace is not yet a live booking or dispatch system.
 - `migrations/0016_platform_fee_15pct.sql` — rebuilds `referrals` so its checks accept the 15% fee (any rate from 0–50%, still enforcing total = rate + fee = ceil(rate / (1 − fee rate))); existing 20% rows and every linked row are kept. Unpaid jobs whose checkout was opened at 20% are re-priced at 15% the next time the customer pays.
 - Setup: add the repository secret `STRIPE_SECRET_KEY` (a **test** secret key) and run the "Set up ByeByeDoody development marketplace" workflow; it stores the key and a newly created webhook secret in the Pages preview environment.
 
+## Sweep&Go lead integration (owner request 2026-11-19)
+
+Leads from the owner's Sweep&Go account (Open API, https://openapi.sweepandgo.com/docs) flow into the admin dashboard
+("Sweep&Go leads" panel on /app/) and out to pros as on-demand "Book now" jobs.
+
+- **Connect:** in Sweep&Go, Settings › Open API › Generate new token with webhook URL
+  `https://www.byebyedoody.com/api/integrations/sweepandgo` and events `lead:in_service_area`, `lead:out_of_service_area`,
+  `lead:delete`, `free:quote`. Save the token as the GitHub repository secret `SWEEPANDGO_API_TOKEN` (never in chat or
+  the repo), then run the production setup workflow (`ops/run-prod-setup`) so it becomes the Pages secret, and redeploy.
+- **Pull, not push:** Sweep&Go webhooks are unsigned, so `/api/integrations/sweepandgo` only logs the event type and
+  then pulls leads with the API token. A scheduled Action (`sweepandgo-sync.yml`, every 15 minutes) is the backup.
+- **Storage:** `sweepandgo_leads` (migration 0017). Name, email, phone and address are AES-GCM encrypted; only admins
+  see them. Leads that existed when the token was first connected are imported but not sent automatically.
+- **Auto-send:** new leads inside the owner's Sweep&Go service area become instant jobs (AI price, guide fallback) for
+  approved pros in that ZIP, unless Sweep&Go says the email is already a client. Out-of-area leads and free quotes
+  without a ZIP wait in the panel for "Send to pros".
+- **Customer payment:** when a pro accepts, the customer is emailed a one-time link (`/app/?claim=…`, 7 days, stored
+  as a SHA-256 hash). They sign in with the same email, the job moves into their account, and they pay with the
+  normal Stripe "Pay now" (pro's rate + 15% fee). Until then the job belongs to a placeholder customer
+  `sweepandgo|<lead id>`.
+
 ## Required before marketplace launch
 
 1. Confirm the referral-agency model and all provider/customer agreements with California employment counsel.

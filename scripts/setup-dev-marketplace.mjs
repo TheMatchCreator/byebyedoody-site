@@ -129,6 +129,12 @@ if (process.env.AUTH0_MGMT_CLIENT_ID) envVars.AUTH0_MGMT_CLIENT_ID = { type: "pl
   if (mg) { console.log(`::add-mask::${mg}`); envVars.AUTH0_MGMT_CLIENT_SECRET = { type: "secret_text", value: mg }; console.log("Auth0 account-deletion key: set."); }
   else console.log("Auth0 account-deletion key: not provided (sign-ins of deleted accounts will need manual removal).");
 }
+// Sweep&Go Open API token (the owner's own token, from the SWEEPANDGO_API_TOKEN repository secret).
+{
+  const sg = String(process.env.SWEEPANDGO_API_TOKEN || "").trim();
+  if (sg) { console.log(`::add-mask::${sg}`); envVars.SWEEPANDGO_API_TOKEN = { type: "secret_text", value: sg }; console.log("Sweep&Go API token: set."); }
+  else console.log("Sweep&Go API token: " + (existingVars.SWEEPANDGO_API_TOKEN ? "already set; leaving it unchanged." : "not provided yet."));
+}
 if (!existingVars.DATA_ENCRYPTION_KEY) {
   const key = randomBytes(32).toString("base64");
   console.log(`::add-mask::${key}`);

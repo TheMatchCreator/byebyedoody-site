@@ -31,4 +31,5 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           STRIPE_SECRET_KEY: ${{ secrets.BYEBYEDOODY_STRIPE_LIVE_KEY || secrets.BYEBYEDOODY_STRIPE_KEY }}
           BBD_REQUIRE_LIVE: ${{ secrets.BYEBYEDOODY_STRIPE_LIVE_KEY != '' && 'yes' || 'no' }}
+          SWEEPANDGO_API_TOKEN: ${{ secrets.SWEEPANDGO_API_TOKEN }}
         run: node scripts/setup-dev-marketplace.mjs

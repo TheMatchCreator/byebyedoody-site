@@ -6,10 +6,11 @@ import { requireUser } from "../../_shared/marketplace-auth.js";
 import { json, sameOrigin, activeAccount, readJson } from "../../_shared/http.js";
 import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { feeBreakdown } from "../../_shared/stripe.js";
+import { notifyImportedCustomer } from "../../_shared/sweepandgo.js";
 
 const SERVICE = { one_time: "One-time cleanup", weekly: "Weekly service", twice_weekly: "Twice-weekly service", custom: "Custom schedule" };
 
-export async function onRequest({ request, env }) {
+export async function onRequest({ request, env, waitUntil }) {
   if (!sameOrigin(request)) return json({ error: "Request origin could not be verified." }, 403);
   if (!env.DB) return json({ error: "Marketplace database is not connected." }, 503);
   const auth = await requireUser(request, env, ["provider"]);
@@ -81,6 +82,9 @@ export async function onRequest({ request, env }) {
       .bind(crypto.randomUUID(), user.id, job.id, user.id)
   ]);
   if (!writes[0]?.meta?.changes) return json({ error: "Another pro accepted this job first. Keep Live jobs open for the next one!" }, 409);
+  // Jobs that came from the owner's Sweep&Go leads: email the customer a confirm-and-pay link.
+  const imported = notifyImportedCustomer(env, job.id, new URL(request.url).origin).catch((e) => console.error("Sweep&Go customer email failed:", e?.message || "error"));
+  if (typeof waitUntil === "function") waitUntil(imported); else await imported;
   return json({ ok: true, youReceiveCents: job.instant_rate_cents, customerTotalCents: feeBreakdown(job.instant_rate_cents).customerTotalCents,
     message: "It's yours! The customer is being asked to pay now. Once they pay, the job shows in My jobs with the address." });
 }

@@ -43,6 +43,11 @@ jobs:
           grep -q 'CHECK (platform_fee_rate_basis_points = 2000)' migrations/0008_stripe_test_payments.sql
           grep -q 'CHECK (platform_fee_rate_basis_points BETWEEN 0 AND 5000)' migrations/0016_platform_fee_15pct.sql
           grep -q 'PLATFORM_FEE_BASIS_POINTS = 1500' functions/_shared/stripe.js
+          # Sweep&Go: webhooks only trigger a pull (never trusted), claim links are stored hashed, admin-only lead data.
+          grep -q 'never trusts the payload' functions/api/integrations/sweepandgo.js
+          grep -q 'claim_token_hash' migrations/0017_sweepandgo_leads.sql
+          grep -q 'requireUser(request, env, \["admin"\])' functions/api/marketplace/admin-sweepandgo.js
+          grep -q 'email_mismatch' functions/api/marketplace/claim.js
           grep -q 'api_rate_limits' migrations/0006_api_rate_limits.sql
           grep -q 'matching_consent_at' migrations/0003_matching_consent.sql
           grep -q 'customer_fee_acknowledged_at' migrations/0001_marketplace_foundation.sql
