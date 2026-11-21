@@ -6,7 +6,7 @@ import { json, sameOrigin, activeAccount, readJson } from "../../_shared/http.js
 import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { decryptPrivate } from "../../_shared/crypto.js";
 import { rebookDelayDays } from "../../_shared/perks.js";
-import { releasePayout } from "../../_shared/payouts.js";
+import { startConfirmWindow, customerConfirm, customerDispute, retryPayouts, CONFIRM_WINDOW_MINUTES } from "../../_shared/payouts.js";
 
 const CONSENT_VERSION = "job_location_v1";
 const SERVICE = { one_time: "One-time cleanup", weekly: "Weekly service", twice_weekly: "Twice-weekly service", custom: "Custom schedule" };
@@ -34,12 +34,16 @@ async function handle({ request, env }) {
   await env.DB.prepare("DELETE FROM job_location_points WHERE retention_until < ?").bind(new Date().toISOString()).run().catch(() => {});
 
   if (request.method === "GET") {
+    await retryPayouts(env, 3).catch(() => {}); // release any payouts whose 1-hour window just ended
     const col = user.role === "provider" ? "f.provider_id" : "f.customer_id";
     const rows = (await env.DB.prepare(
       `SELECT f.id, f.request_id, f.provider_id, f.status, f.payment_status, f.provider_rate_cents, f.customer_total_cents, f.on_the_way_at, f.arrived_at, f.completed_at, f.paid_at,
               r.service_zip, r.service_type, r.dog_count, r.yard_size, r.service_address_ciphertext, r.scope_notes_ciphertext,
-              p.independent_business_name AS provider_name
+              p.independent_business_name AS provider_name,
+              po.status AS payout_status, po.pro_done_at, po.auto_release_at, po.customer_confirmed_at, po.disputed_at,
+              (po.auto_release_at IS NOT NULL AND po.auto_release_at > datetime('now')) AS window_open
          FROM referrals f JOIN service_requests r ON r.id = f.request_id JOIN provider_profiles p ON p.user_id = f.provider_id
+         LEFT JOIN provider_payouts po ON po.referral_id = f.id
         WHERE ${col} = ? AND f.payment_status = 'paid' ORDER BY f.paid_at DESC LIMIT 50`
     ).bind(user.id).all()).results || [];
     const jobs = [];
@@ -47,6 +51,11 @@ async function handle({ request, env }) {
       const job = { id: j.id, requestId: user.role === "customer" ? j.request_id : undefined, serviceType: j.service_type, status: j.status, service: SERVICE[j.service_type] || "Cleanup", zip: j.service_zip, dogs: j.dog_count, yard: j.yard_size,
         provider: j.provider_name, onTheWayAt: j.on_the_way_at, arrivedAt: j.arrived_at, completedAt: j.completed_at,
         amountCents: user.role === "provider" ? j.provider_rate_cents : j.customer_total_cents };
+      if (j.payout_status) {
+        job.payout = j.payout_status === "paid" ? "paid" : j.payout_status === "cancelled" ? "refunded" : j.disputed_at ? "on_hold_problem_reported"
+          : !j.pro_done_at ? "held_until_done" : j.customer_confirmed_at || !j.window_open ? "releasing" : "waiting_for_customer";
+        job.confirmBy = job.payout === "waiting_for_customer" ? j.auto_release_at : null;
+      }
       const consent = await sharingConsent(env, j.id, j.provider_id);
       job.sharingLocation = Boolean(consent) && j.status !== "completed";
       if (user.role === "provider") {
@@ -63,6 +72,28 @@ async function handle({ request, env }) {
   }
 
   if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
+  if (user.role === "customer") {
+    // Customer side of "both confirm the job is done": confirm, or report a problem within the hour.
+    let input; try { input = await readJson(request); } catch { return json({ error: "Submit a valid job update." }, 400); }
+    const referralId = typeof input.referralId === "string" ? input.referralId.slice(0, 80) : "";
+    const job = await env.DB.prepare("SELECT id FROM referrals WHERE id = ? AND customer_id = ? AND payment_status = 'paid' AND status = 'completed'").bind(referralId, user.id).first();
+    if (!job) return json({ error: "Job not found." }, 404);
+    if (input.action === "confirm_done") {
+      const r = await customerConfirm(env, job.id);
+      if (!r.ok && !r.skipped && !r.error) return json({ error: "This job was already confirmed or reported." }, 409);
+      await env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'customer_confirmed_job_done', 'referral', ?)").bind(crypto.randomUUID(), user.id, job.id).run();
+      return json({ ok: true, message: "Thanks! You confirmed the job is done and your pro is being paid." });
+    }
+    if (input.action === "report_problem") {
+      const note = typeof input.note === "string" ? input.note.trim().slice(0, 1000) : "";
+      if (note.length < 5) return json({ error: "Tell us briefly what's wrong." }, 400);
+      const r = await customerDispute(env, job.id, note);
+      if (!r.ok) return json({ error: "The 1-hour window to report a problem has passed, or this job was already confirmed. Use Privacy & support > Report a service issue." }, 409);
+      await env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'customer_reported_job_problem', 'referral', ?)").bind(crypto.randomUUID(), user.id, job.id).run();
+      return json({ ok: true, message: "Got it. We've put the pro's payment on hold and ByeByeDoody will follow up with you." });
+    }
+    return json({ error: "Unknown job action." }, 400);
+  }
   if (user.role !== "provider") return json({ error: "Only the provider can update a job." }, 403);
   const limited = await enforceRateLimit(env, user.id, "job_update", 400, 3600);
   if (limited) return limited;
@@ -115,9 +146,10 @@ async function handle({ request, env }) {
          SELECT ?, r.customer_id, r.id, datetime('now', '+' || ? || ' days') FROM service_requests r WHERE r.id = ?`)
         .bind(crypto.randomUUID(), String(rebookDelayDays((await env.DB.prepare("SELECT service_type FROM service_requests WHERE id = ?").bind(job.request_id).first())?.service_type)), job.request_id)
     ]);
-    // Work is done: send the pro their full rate now (a scheduled retry covers any Stripe hiccup).
-    const payout = await releasePayout(env, job.id).catch(() => ({ ok: false }));
-    return json({ ok: true, sharingLocation: false, payoutSent: Boolean(payout.ok), payoutPending: !payout.ok && !payout.skipped });
+    // Work is done on the pro's side: the customer now has 1 hour to confirm or report a problem;
+    // no answer counts as confirmed and the pro is paid (see _shared/payouts.js).
+    const w = await startConfirmWindow(env, job.id, new URL(request.url).origin).catch(() => ({ ok: false }));
+    return json({ ok: true, sharingLocation: false, awaitingCustomer: Boolean(w.ok), confirmWindowMinutes: CONFIRM_WINDOW_MINUTES });
   }
   if (action === "stop_sharing") {
     await env.DB.batch([revoke, audit("job_location_sharing_stopped")]);

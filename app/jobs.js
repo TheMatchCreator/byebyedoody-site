@@ -52,7 +52,7 @@
           <span><b>Address:</b> ${esc(j.address)} · <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(j.address || "")}" target="_blank" rel="noopener">Directions</a></span>
           ${j.notes ? `<span><b>Customer notes:</b> ${esc(j.notes)}</span>` : ""}
           <span>You receive ${money(j.amountCents)}.</span>
-          ${done ? "<span><b>Job complete.</b> Thank you!</span>" : `
+          ${done ? `<span><b>Job complete.</b> ${esc(({ paid: "Your payout was sent to your Stripe account.", waiting_for_customer: "Waiting for the customer to confirm (up to 1 hour, then it's automatic).", releasing: "Your payout is being sent.", on_hold_problem_reported: "The customer reported a problem, so your payout is on hold while ByeByeDoody reviews it.", refunded: "This job was refunded to the customer." })[j.payout] || "Thank you!")}</span>` : `
           <label class="portal-check"><input type="checkbox" data-share ${j.sharingLocation ? "checked" : ""}> Share my location with this customer until I arrive (optional)</label>
           <div class="portal-actions">
             <button type="button" class="button button-dark" data-act="on_my_way">🚗 On my way</button>
@@ -62,17 +62,30 @@
           </div>`}<span class="portal-muted" data-job-status></span></div>`;
       }
       const loc = j.location ? `<span>📍 Provider location (${ago(j.location.at)}): <a href="https://www.openstreetmap.org/?mlat=${j.location.lat}&mlon=${j.location.lng}#map=15/${j.location.lat}/${j.location.lng}" target="_blank" rel="noopener">see on map</a></span>` : (j.sharingLocation ? "<span>📍 Waiting for the provider's location…</span>" : "");
-      const state = j.completedAt ? "Your provider marked the job done. Problem? Use Privacy & support > Report a service issue." : j.arrivedAt ? "Your provider has arrived." : j.onTheWayAt ? "Your provider is on the way!" : "Your provider will tap “On my way” when they head over.";
+      const state = j.payout === "waiting_for_customer" ? `Your provider marked the job done. Please confirm by ${new Date(String(j.confirmBy).replace(" ", "T") + "Z").toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}; after that it counts as confirmed and your pro is paid.`
+        : j.payout === "on_hold_problem_reported" ? "You reported a problem. The pro's payment is on hold and ByeByeDoody will follow up."
+        : j.payout === "refunded" ? "This job was refunded."
+        : j.completedAt ? "Job done and confirmed. Problem later? Use Privacy & support > Report a service issue." : j.arrivedAt ? "Your provider has arrived." : j.onTheWayAt ? "Your provider is on the way!" : "Your provider will tap “On my way” when they head over.";
       const again = j.completedAt && j.requestId ? `<div class="portal-actions"><button type="button" class="button button-dark" data-rebook="${esc(j.requestId)}">🔁 Book again</button>${j.serviceType === "one_time" ? `<button type="button" class="button button-outline-dark" data-rebook="${esc(j.requestId)}" data-weekly="1">📅 Make it weekly</button>` : ""}</div>` : "";
-      return `<div class="portal-result-row">${head}<span>${esc(j.provider)} · You paid ${money(j.amountCents)}</span><span><b>${state}</b></span>${loc}${again}</div>`;
+      const confirm = j.payout === "waiting_for_customer" ? `<div class="portal-actions" data-confirm="${esc(j.id)}"><button type="button" class="button button-dark" data-cact="confirm_done">✅ Confirm job done</button><button type="button" class="button button-outline-dark" data-cact="report_problem">⚠️ Report a problem</button></div><span class="portal-muted" data-cstatus></span>` : "";
+      return `<div class="portal-result-row" data-cjob="${esc(j.id)}">${head}<span>${esc(j.provider)} · You paid ${money(j.amountCents)}</span><span><b>${state}</b></span>${confirm}${loc}${again}</div>`;
     }).join("");
+    box.querySelectorAll("[data-cact]").forEach((b) => b.addEventListener("click", async () => {
+      const row = b.closest("[data-cjob]"), st = row.querySelector("[data-cstatus]"), act = b.dataset.cact;
+      let note = "";
+      if (act === "report_problem") { note = window.prompt("What's wrong with the cleanup? (The pro's payment will be held while we sort it out.)") || ""; if (note.trim().length < 5) return; }
+      else if (!window.confirm("Confirm the job is done? Your pro will be paid.")) return;
+      b.disabled = true;
+      try { const r = await call("/api/marketplace/jobs", { method: "POST", body: JSON.stringify({ referralId: row.dataset.cjob, action: act, note }) }); await render(); box.insertAdjacentHTML("afterbegin", `<p class="portal-notice">${esc(r.message)}</p>`); }
+      catch (e) { st.textContent = e.message; b.disabled = false; }
+    }));
     box.querySelectorAll("[data-rebook]").forEach((b) => b.addEventListener("click", () => rebook(b.dataset.rebook, b.dataset.weekly === "1", b)));
     box.querySelectorAll("[data-job]").forEach((row) => {
       const id = row.dataset.job, status = row.querySelector("[data-job-status]"), share = row.querySelector("[data-share]");
       if (share && share.checked && watchJob !== id) startWatch(id, status);
       row.querySelectorAll("[data-act]").forEach((b) => b.addEventListener("click", async () => {
         const act = b.dataset.act;
-        if (act === "complete" && !window.confirm("Mark this job as done?")) return;
+        if (act === "complete" && !window.confirm("Mark this job as done? The customer gets 1 hour to confirm or report a problem, then your payout is sent.")) return;
         b.disabled = true;
         try {
           const r = await call("/api/marketplace/jobs", { method: "POST", body: JSON.stringify({ referralId: id, action: act, shareLocation: Boolean(share && share.checked) }) });

@@ -123,13 +123,33 @@
     }));
   }
 
+  // ---------- admin: payouts on hold (customer reported a problem) ----------
+  async function renderPayoutsAdmin() {
+    const box = document.querySelector("[data-payouts-admin]");
+    if (!box) return;
+    let d; try { d = await call("/api/marketplace/admin-payouts"); } catch (e) { box.hidden = false; box.innerHTML = `<h2>💵 Payouts on hold</h2><p>${esc(e.message)}</p>`; return; }
+    box.hidden = false;
+    const items = d.items || [];
+    box.innerHTML = `<h2>💵 Payouts on hold</h2><p>Pros are paid when they tap "Job done" and the customer confirms, or 1 hour passes with no problem reported. Jobs where the customer reported a problem wait here for you.</p><p data-po-status role="status"></p>` +
+      (items.length ? items.map((x) => `<div class="portal-result-row" data-po="${esc(x.referralId)}"><div><b>${esc(x.pro)}</b> · ZIP ${esc(x.zip)} · payout ${money(x.payoutCents)} (customer paid ${money(x.customerPaidCents)})</div>
+        <div>${x.stuck ? `Transfer keeps failing: ${esc(x.error || "")}` : `Problem reported ${esc(when(x.reportedAt))}: <i>${esc(x.note || "(no details)")}</i>`}</div>
+        <div class="portal-actions"><button type="button" data-po-act="release">Pay the pro</button>${x.stuck ? "" : `<button type="button" data-po-act="refund">Refund the customer</button>`}</div></div>`).join("") : "<p>Nothing on hold.</p>");
+    box.querySelectorAll("[data-po-act]").forEach((b) => b.addEventListener("click", async () => {
+      const row = b.closest("[data-po]"), act = b.dataset.poAct, st = box.querySelector("[data-po-status]");
+      if (!window.confirm(act === "release" ? "Send this payout to the pro?" : "Refund the customer in full? The pro won't be paid for this job.")) return;
+      b.disabled = true;
+      try { const r = await call("/api/marketplace/admin-payouts", { method: "POST", body: JSON.stringify({ action: act, referralId: row.dataset.po }) }); await renderPayoutsAdmin(); box.querySelector("[data-po-status]").textContent = r.message; }
+      catch (e) { st.textContent = e.message; b.disabled = false; }
+    }));
+  }
+
   async function init() {
     const auth = window.BBDOODY_AUTH;
     if (!auth || !auth.claims) { setTimeout(init, 500); return; }
     let c = null; try { c = await auth.claims(); } catch {}
     const role = c && c[ROLE_CLAIM];
     if (claimToken) await renderClaim(role || null);
-    if (role === "admin") await renderAdmin();
+    if (role === "admin") { await renderPayoutsAdmin(); await renderAdmin(); }
   }
   window.addEventListener("load", () => setTimeout(init, 900));
 })();

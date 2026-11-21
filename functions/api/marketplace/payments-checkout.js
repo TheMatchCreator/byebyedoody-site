@@ -7,6 +7,7 @@ import { requireUser } from "../../_shared/marketplace-auth.js";
 import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { stripe, paymentsMode, stripeKey, feeBreakdown, PLATFORM_FEE_BASIS_POINTS, FEE_DISCLOSURE_VERSION, PLATFORM_FEE_PERCENT_LABEL } from "../../_shared/stripe.js";
 import { availableCredit } from "../../_shared/perks.js";
+import { encryptPrivate } from "../../_shared/crypto.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }
@@ -122,10 +123,13 @@ export async function onRequest({ request, env }) {
     const origin = new URL(request.url).origin;
     // Pay the pro after the work is done: the charge stays on the platform account and the pro's full
     // rate is transferred when they mark the job "Job done" (see _shared/payouts.js).
-    await env.DB.prepare(`INSERT INTO provider_payouts (referral_id, provider_id, destination_account, amount_cents, status)
-        VALUES (?, ?, ?, ?, 'awaiting_payment')
-        ON CONFLICT(referral_id) DO UPDATE SET destination_account = excluded.destination_account, amount_cents = excluded.amount_cents
-        WHERE provider_payouts.status = 'awaiting_payment'`).bind(referral.id, inv.provider_id, inv.stripe_account_id, amounts.providerRateCents).run();
+    // The customer's email (encrypted) is kept with the payout so we can ask them to confirm the job is done.
+    const emailCt = user.email ? await encryptPrivate(String(user.email), env).catch(() => null) : null;
+    await env.DB.prepare(`INSERT INTO provider_payouts (referral_id, provider_id, destination_account, amount_cents, status, customer_email_ciphertext)
+        VALUES (?, ?, ?, ?, 'awaiting_payment', ?)
+        ON CONFLICT(referral_id) DO UPDATE SET destination_account = excluded.destination_account, amount_cents = excluded.amount_cents,
+          customer_email_ciphertext = COALESCE(excluded.customer_email_ciphertext, provider_payouts.customer_email_ciphertext)
+        WHERE provider_payouts.status = 'awaiting_payment'`).bind(referral.id, inv.provider_id, inv.stripe_account_id, amounts.providerRateCents, emailCt).run();
     const session = await stripe(env, "POST", "/checkout/sessions", {
       mode: "payment",
       client_reference_id: referral.id,

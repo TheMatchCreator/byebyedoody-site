@@ -56,7 +56,7 @@ export async function onRequestPost({ request, env }) {
           env.DB.prepare("INSERT INTO notification_events (id, user_id, channel, template_key, delivery_status) SELECT ?, referrer_id, 'in_app', 'referral_reward_earned', 'sent' FROM referral_rewards WHERE referee_id = (SELECT customer_id FROM referrals WHERE id = ?) AND earned_at >= datetime('now','-1 minute')").bind(crypto.randomUUID(), f.id)
         );
         await env.DB.batch(writes);
-        if (held) await releasePayout(env, f.id).catch(() => {}); // only pays if the job is already marked done
+        if (held) await releasePayout(env, f.id).catch(() => {}); // only pays if the job is done and confirmed (or its 1-hour window passed)
       }
     }
     return reply({ received: true });
