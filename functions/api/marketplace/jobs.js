@@ -6,6 +6,7 @@ import { json, sameOrigin, activeAccount, readJson } from "../../_shared/http.js
 import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { decryptPrivate } from "../../_shared/crypto.js";
 import { rebookDelayDays } from "../../_shared/perks.js";
+import { releasePayout } from "../../_shared/payouts.js";
 
 const CONSENT_VERSION = "job_location_v1";
 const SERVICE = { one_time: "One-time cleanup", weekly: "Weekly service", twice_weekly: "Twice-weekly service", custom: "Custom schedule" };
@@ -114,7 +115,9 @@ async function handle({ request, env }) {
          SELECT ?, r.customer_id, r.id, datetime('now', '+' || ? || ' days') FROM service_requests r WHERE r.id = ?`)
         .bind(crypto.randomUUID(), String(rebookDelayDays((await env.DB.prepare("SELECT service_type FROM service_requests WHERE id = ?").bind(job.request_id).first())?.service_type)), job.request_id)
     ]);
-    return json({ ok: true, sharingLocation: false });
+    // Work is done: send the pro their full rate now (a scheduled retry covers any Stripe hiccup).
+    const payout = await releasePayout(env, job.id).catch(() => ({ ok: false }));
+    return json({ ok: true, sharingLocation: false, payoutSent: Boolean(payout.ok), payoutPending: !payout.ok && !payout.skipped });
   }
   if (action === "stop_sharing") {
     await env.DB.batch([revoke, audit("job_location_sharing_stopped")]);

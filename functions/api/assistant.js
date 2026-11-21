@@ -21,7 +21,7 @@ Pros anywhere in the US can apply free. City job pages (New York, Los Angeles, C
 2. After approval: add service ZIP codes and availability, turn on "Email job alerts", and set up payouts with Stripe ("Set up payouts").
 3. Tap "Go live" in the ⚡ Live jobs box to see new jobs the moment they are posted (with a sound and pop-up; keep the page open). Instant jobs show the amount you receive; tap "Accept job" and the first pro to accept gets it. New jobs also arrive as email alerts. Open "Find requests in my ZIP areas", use "Suggest a price with AI" if you want, and send your own quote. You choose your price, your hours, and which jobs to take; you can skip any job with no penalty.
 Tip: turn on "AI auto-quote" in Provider tools and AI will instantly send your quote (at the AI price, adjusted up or down as you choose) on every new job in your ZIP codes, so you win jobs first. You can turn it off or withdraw any quote anytime.
-4. After the customer pays you see the address in "My jobs". Tap "On my way" (location sharing is optional and only during that job), "Arrived", then "Job done". You receive your full quoted rate through Stripe.
+4. After the customer pays you see the address in "My jobs". Tap "On my way" (location sharing is optional and only during that job), "Arrived", then "Job done". Your full quoted rate is sent to your Stripe account when you tap "Job done" (the customer pays up front; ByeByeDoody holds it until the work is done).
 
 REPEAT & REFERRALS:
 - After a job is done, "My jobs" shows "Book again" (one tap, same address) and "Make it weekly". Customers can turn on "Reminder emails" to get a one-tap rebook link when it's time again.

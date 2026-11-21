@@ -107,6 +107,13 @@ Leads from the owner's Sweep&Go account (Open API, https://openapi.sweepandgo.co
   normal Stripe "Pay now" (pro's rate + 15% fee). Until then the job belongs to a placeholder customer
   `sweepandgo|<lead id>`.
 
+## Pros are paid after the work is done (owner request 2026-11-20)
+
+New checkouts charge the customer on the ByeByeDoody Stripe account (no `transfer_data`). The pro's full quoted
+rate is held (`provider_payouts`, migration 0018) and sent with a Stripe Transfer (`source_transaction` = the
+customer's charge, idempotency key `bbd-payout-<referral>`) when the pro taps "Job done". The 15-minute scheduled
+job retries any payout that failed. Jobs paid before this change used destination charges and were already paid out.
+
 ## Required before marketplace launch
 
 1. Confirm the referral-agency model and all provider/customer agreements with California employment counsel.

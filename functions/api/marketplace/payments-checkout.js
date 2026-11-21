@@ -37,7 +37,7 @@ export async function onRequest({ request, env }) {
        ORDER BY i.responded_at DESC LIMIT 25`).bind(user.id).all()).results || [];
     return json({
       mode: stripeKey(env) ? paymentsMode(env) : "not_configured",
-      feeDisclosure: `ByeByeDoody adds a separately disclosed platform fee equal to ${PLATFORM_FEE_PERCENT_LABEL} of your total. Your provider receives their full quoted rate.`,
+      feeDisclosure: `ByeByeDoody adds a separately disclosed platform fee equal to ${PLATFORM_FEE_PERCENT_LABEL} of your total. Your payment is held until the provider marks the job done; then they receive their full quoted rate.`,
       creditCents: await availableCredit(env, user.id),
       jobs: rows.map((row) => ({
         invitationId: row.invitation_id,
@@ -120,20 +120,25 @@ export async function onRequest({ request, env }) {
     ];
     if (feeCharged > 0) lineItems.push({ quantity: 1, price_data: { currency: "usd", unit_amount: feeCharged, product_data: { name: credit ? `ByeByeDoody platform fee (${PLATFORM_FEE_PERCENT_LABEL} of total, after $${(credit / 100).toFixed(2)} referral credit)` : `ByeByeDoody platform fee (${PLATFORM_FEE_PERCENT_LABEL} of total)` } } });
     const origin = new URL(request.url).origin;
+    // Pay the pro after the work is done: the charge stays on the platform account and the pro's full
+    // rate is transferred when they mark the job "Job done" (see _shared/payouts.js).
+    await env.DB.prepare(`INSERT INTO provider_payouts (referral_id, provider_id, destination_account, amount_cents, status)
+        VALUES (?, ?, ?, ?, 'awaiting_payment')
+        ON CONFLICT(referral_id) DO UPDATE SET destination_account = excluded.destination_account, amount_cents = excluded.amount_cents
+        WHERE provider_payouts.status = 'awaiting_payment'`).bind(referral.id, inv.provider_id, inv.stripe_account_id, amounts.providerRateCents).run();
     const session = await stripe(env, "POST", "/checkout/sessions", {
       mode: "payment",
       client_reference_id: referral.id,
       customer_email: user.email || undefined,
       line_items: lineItems,
       payment_intent_data: {
-        ...(feeCharged > 0 ? { application_fee_amount: feeCharged } : {}),
-        transfer_data: { destination: inv.stripe_account_id },
-        metadata: { referral_id: referral.id, invitation_id: inv.id }
+        transfer_group: referral.id,
+        metadata: { referral_id: referral.id, invitation_id: inv.id, payout: "after_completion" }
       },
       metadata: { referral_id: referral.id, invitation_id: inv.id },
       success_url: `${origin}/app/?payment=success`,
       cancel_url: `${origin}/app/?payment=cancelled`
-    }, `bbd-checkout-${referral.id}-${credit}-${Math.floor(Date.now() / 600000)}`);
+    }, `bbd-checkout2-${referral.id}-${credit}-${Math.floor(Date.now() / 600000)}`);
     await env.DB.prepare("UPDATE referrals SET stripe_checkout_session_id = ?, payment_status = 'checkout_open' WHERE id = ? AND payment_status <> 'paid'").bind(session.id, referral.id).run();
     return json({ url: session.url, mode: paymentsMode(env) });
   } catch (error) {

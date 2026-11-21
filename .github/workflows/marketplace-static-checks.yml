@@ -48,6 +48,10 @@ jobs:
           grep -q 'claim_token_hash' migrations/0017_sweepandgo_leads.sql
           grep -q 'requireUser(request, env, \["admin"\])' functions/api/marketplace/admin-sweepandgo.js
           grep -q 'email_mismatch' functions/api/marketplace/claim.js
+          # Pros are paid after the work is done: no instant destination transfer at checkout.
+          ! grep -q 'transfer_data' functions/api/marketplace/payments-checkout.js
+          grep -q 'source_transaction' functions/_shared/payouts.js
+          grep -q 'releasePayout(env, job.id)' functions/api/marketplace/jobs.js
           grep -q 'api_rate_limits' migrations/0006_api_rate_limits.sql
           grep -q 'matching_consent_at' migrations/0003_matching_consent.sql
           grep -q 'customer_fee_acknowledged_at' migrations/0001_marketplace_foundation.sql

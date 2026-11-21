@@ -1,6 +1,7 @@
 // Stripe webhook. Verifies the signature, ignores events from the other Stripe mode,
 // and records each paid Checkout Session once in the payment ledger.
 import { verifyStripeSignature, paymentsMode } from "../_shared/stripe.js";
+import { releasePayout } from "../_shared/payouts.js";
 
 const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
@@ -32,10 +33,15 @@ export async function onRequestPost({ request, env }) {
       const ledger = "INSERT OR IGNORE INTO payment_ledger (id, referral_id, entry_type, amount_cents, processor_object_id, status) VALUES (?, ?, ?, ?, ?, 'succeeded')";
       const paid = await env.DB.prepare("UPDATE referrals SET payment_status = 'paid', status = 'accepted', stripe_payment_intent_id = ?, paid_at = CURRENT_TIMESTAMP WHERE id = ? AND payment_status <> 'paid'").bind(pi, f.id).run();
       if (paid.meta?.changes) {
+        // New checkouts hold the pro's rate until "Job done" (provider_payouts row); older destination
+        // charges already sent it to the pro at payment time.
+        const held = await env.DB.prepare("SELECT referral_id FROM provider_payouts WHERE referral_id = ?").bind(f.id).first().catch(() => null);
         const writes = [
           env.DB.prepare(ledger).bind(crypto.randomUUID(), f.id, "customer_charge", f.customer_total_cents - credit, pi),
           env.DB.prepare(ledger).bind(crypto.randomUUID(), f.id, "platform_fee", f.platform_fee_cents - credit, pi),
-          env.DB.prepare(ledger).bind(crypto.randomUUID(), f.id, "provider_transfer", f.provider_rate_cents, pi),
+          held
+            ? env.DB.prepare("UPDATE provider_payouts SET status = 'held', held_at = CURRENT_TIMESTAMP WHERE referral_id = ? AND status = 'awaiting_payment'").bind(f.id)
+            : env.DB.prepare(ledger).bind(crypto.randomUUID(), f.id, "provider_transfer", f.provider_rate_cents, pi),
           env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, NULL, ?, 'referral', ?)").bind(crypto.randomUUID(), paymentsMode(env) === "live" ? "referral_paid" : "referral_paid_test_mode", f.id)
         ];
         if (credit > 0) writes.push(
@@ -50,6 +56,7 @@ export async function onRequestPost({ request, env }) {
           env.DB.prepare("INSERT INTO notification_events (id, user_id, channel, template_key, delivery_status) SELECT ?, referrer_id, 'in_app', 'referral_reward_earned', 'sent' FROM referral_rewards WHERE referee_id = (SELECT customer_id FROM referrals WHERE id = ?) AND earned_at >= datetime('now','-1 minute')").bind(crypto.randomUUID(), f.id)
         );
         await env.DB.batch(writes);
+        if (held) await releasePayout(env, f.id).catch(() => {}); // only pays if the job is already marked done
       }
     }
     return reply({ received: true });

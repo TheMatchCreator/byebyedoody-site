@@ -26,7 +26,7 @@
 
   async function renderProvider() {
     box.innerHTML = `<h2>Payouts <span class="pay-badge" data-test-badge hidden>Stripe test mode</span></h2>
-      <p>Get paid for accepted jobs through Stripe. Stripe collects your identity, bank and tax details directly; ByeByeDoody never sees them. You receive your full quoted rate.</p>
+      <p>Get paid for accepted jobs through Stripe. Stripe collects your identity, bank and tax details directly; ByeByeDoody never sees them. You receive your full quoted rate, sent to your Stripe account when you mark each job "Job done".</p>
       <div data-pay-body>Checking payout setup…</div><p data-pay-status role="status"></p>`;
     const body = box.querySelector("[data-pay-body]");
     try {
