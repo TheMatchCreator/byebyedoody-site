@@ -77,7 +77,7 @@
         <button type="button" data-sg-act="send">Send to pros</button>${l.status === "new" ? `<button type="button" data-sg-act="skip">Skip</button>` : ""}</div>` :
       (["customer_emailed", "needs_contact"].includes(l.status) ? `<div class="portal-actions"><button type="button" data-sg-act="resend">Re-send pay link</button></div>` : "");
     return `<div class="portal-result-row" data-lead="${esc(l.id)}">
-      <div><b>${esc(l.name || "(no name)")}</b> · ZIP ${esc(l.zip || "?")}${l.inArea ? "" : " · <i>outside your Sweep&Go area</i>"} · ${esc(l.source === "free_quote" ? "Free quote" : (l.sgType || "Lead"))}</div>
+      <div><b>${esc(l.name || "(no name)")}</b> · ZIP ${esc(l.zip || "?")}${l.inArea ? " · <b>inside your area</b>" : " · <i>outside your area</i>"} · ${esc(l.source === "free_quote" ? "Free quote" : (l.sgType || "Lead"))}</div>
       <div>${contact || "No contact info"}${l.address ? ` · ${esc(l.address)}` : ""}</div>
       <div>${l.dogs ? esc(l.dogs) + " dog(s)" : "Dogs: not given"}${l.service ? " · " + esc(l.service) : ""} · Status: <b>${esc(state)}</b>${l.pro ? " · Pro: " + esc(l.pro) : ""}${l.customerTotalCents ? " · " + money(l.customerTotalCents) : ""}</div>
       ${l.note ? `<div><i>${esc(l.note)}</i></div>` : ""}
@@ -88,7 +88,7 @@
   async function renderAdmin() {
     if (!adminBox) return;
     adminBox.hidden = false;
-    adminBox.innerHTML = `<h2>🔗 Sweep&Go leads</h2><p>New leads from your Sweep&Go account land here. Leads inside your Sweep&Go service area go out automatically as on-demand "Book now" jobs to approved pros in that ZIP. When a pro accepts, the customer gets an email link to confirm and pay (pro's rate + 15% fee). Leads outside your area wait here for you.</p>
+    adminBox.innerHTML = `<h2>🔗 Sweep&Go leads</h2><p>New leads from your Sweep&Go account land here. Leads <b>outside</b> your Sweep&Go service area go out automatically as on-demand "Book now" jobs to approved pros in that ZIP. When a pro accepts, the customer gets an email link to confirm and pay (pro's rate + 15% fee). Leads <b>inside</b> your area wait here for you to handle (or click "Send to pros").</p>
       <div data-sg-conn>Checking connection…</div><div class="portal-actions"><button type="button" class="button button-dark" data-sg-sync>Sync now</button></div><p data-sg-status role="status"></p><div data-sg-list class="portal-results"></div>`;
     adminBox.querySelector("[data-sg-sync]").addEventListener("click", async (e) => {
       e.target.disabled = true; status("Pulling leads from Sweep&Go…");

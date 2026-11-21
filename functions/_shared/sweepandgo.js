@@ -2,7 +2,8 @@
 // - Leads are PULLED from Sweep&Go with the owner's API token (SWEEPANDGO_API_TOKEN, a Pages secret).
 //   Incoming webhooks only trigger a pull, so a forged webhook cannot create or change a lead.
 // - Contact details are stored AES-GCM encrypted (DATA_ENCRYPTION_KEY); only admins can read them.
-// - New in-service-area leads become on-demand "Book now" jobs for approved pros in that ZIP.
+// - New leads OUTSIDE the owner's Sweep&Go service area become on-demand "Book now" jobs for approved pros in
+//   that ZIP (owner request 2026-11-21). Leads inside the owner's area wait in the dashboard for the owner.
 //   Leads that already existed when the integration was first connected are imported but not sent.
 // - When a pro accepts, the customer gets a one-time link to sign in, confirm and pay (15% fee shown).
 import { encryptPrivate, decryptPrivate } from "./crypto.js";
@@ -212,9 +213,9 @@ export async function syncSweepAndGo(env, origin, { trigger = "manual", force = 
       } catch (e) { result.errors.push("store: " + (e?.message || "error")); }
     }
     if (!baselineDone) { await setState(env, "sg_baseline_done", "1"); result.baseline = true; }
-    // Auto-send: new, non-baseline, in-area leads with a ZIP.
+    // Auto-send: new, non-baseline leads OUTSIDE the owner's Sweep&Go area, with a ZIP.
     const pending = (await env.DB.prepare(
-      `SELECT * FROM sweepandgo_leads WHERE status = 'new' AND baseline = 0 AND in_service_area = 1 AND zip IS NOT NULL
+      `SELECT * FROM sweepandgo_leads WHERE status = 'new' AND baseline = 0 AND in_service_area = 0 AND zip IS NOT NULL
         ORDER BY first_seen_at ASC LIMIT 10`).all()).results || [];
     for (const lead of pending) {
       if (lead.sg_status && SKIP_STATUS.test(lead.sg_status)) {

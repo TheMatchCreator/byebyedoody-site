@@ -99,9 +99,9 @@ Leads from the owner's Sweep&Go account (Open API, https://openapi.sweepandgo.co
   then pulls leads with the API token. A scheduled Action (`sweepandgo-sync.yml`, every 15 minutes) is the backup.
 - **Storage:** `sweepandgo_leads` (migration 0017). Name, email, phone and address are AES-GCM encrypted; only admins
   see them. Leads that existed when the token was first connected are imported but not sent automatically.
-- **Auto-send:** new leads inside the owner's Sweep&Go service area become instant jobs (AI price, guide fallback) for
-  approved pros in that ZIP, unless Sweep&Go says the email is already a client. Out-of-area leads and free quotes
-  without a ZIP wait in the panel for "Send to pros".
+- **Auto-send (changed 2026-11-21):** new leads OUTSIDE the owner's Sweep&Go service area become instant jobs (AI price, guide fallback) for
+  approved pros in that ZIP, unless Sweep&Go says the email is already a client. Leads inside the owner's area and
+  free quotes without a ZIP wait in the panel for the owner (or "Send to pros").
 - **Customer payment:** when a pro accepts, the customer is emailed a one-time link (`/app/?claim=…`, 7 days, stored
   as a SHA-256 hash). They sign in with the same email, the job moves into their account, and they pay with the
   normal Stripe "Pay now" (pro's rate + 15% fee). Until then the job belongs to a placeholder customer
