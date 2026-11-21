@@ -52,7 +52,7 @@
           <span><b>Address:</b> ${esc(j.address)} · <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(j.address || "")}" target="_blank" rel="noopener">Directions</a></span>
           ${j.notes ? `<span><b>Customer notes:</b> ${esc(j.notes)}</span>` : ""}
           <span>You receive ${money(j.amountCents)}.</span>
-          ${done ? `<span><b>Job complete.</b> ${esc(({ paid: "Your payout was sent to your Stripe account.", waiting_for_customer: "Waiting for the customer to confirm (up to 1 hour, then it's automatic).", releasing: "Your payout is being sent.", on_hold_problem_reported: "The customer reported a problem, so your payout is on hold while ByeByeDoody reviews it.", refunded: "This job was refunded to the customer." })[j.payout] || "Thank you!")}</span>` : `
+          ${done ? `<span><b>Job complete.</b> ${esc(({ paid: "Your payout was sent to your Stripe account.", waiting_for_customer: "Waiting for the customer to confirm (up to 15 minutes, then it's automatic).", releasing: "Your payout is being sent.", on_hold_problem_reported: "The customer reported a problem, so your payout is on hold while ByeByeDoody reviews it.", refunded: "This job was refunded to the customer." })[j.payout] || "Thank you!")}</span>` : `
           <label class="portal-check"><input type="checkbox" data-share ${j.sharingLocation ? "checked" : ""}> Share my location with this customer until I arrive (optional)</label>
           <div class="portal-actions">
             <button type="button" class="button button-dark" data-act="on_my_way">🚗 On my way</button>
@@ -85,7 +85,7 @@
       if (share && share.checked && watchJob !== id) startWatch(id, status);
       row.querySelectorAll("[data-act]").forEach((b) => b.addEventListener("click", async () => {
         const act = b.dataset.act;
-        if (act === "complete" && !window.confirm("Mark this job as done? The customer gets 1 hour to confirm or report a problem, then your payout is sent.")) return;
+        if (act === "complete" && !window.confirm("Mark this job as done? The customer gets 15 minutes to confirm or report a problem, then your payout is sent.")) return;
         b.disabled = true;
         try {
           const r = await call("/api/marketplace/jobs", { method: "POST", body: JSON.stringify({ referralId: id, action: act, shareLocation: Boolean(share && share.checked) }) });

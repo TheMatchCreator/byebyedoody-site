@@ -1,4 +1,4 @@
-// Backup Sweep&Go sync, called every 15 minutes by a scheduled GitHub Action (catches any missed
+// Backup Sweep&Go sync + payout release, called every 5 minutes by a scheduled GitHub Action (catches any missed
 // webhook). The Action first stores a one-time nonce in the database (only it has database access).
 import { json } from "../../_shared/http.js";
 import { syncSweepAndGo, sgReady } from "../../_shared/sweepandgo.js";

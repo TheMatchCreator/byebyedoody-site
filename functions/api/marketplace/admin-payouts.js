@@ -1,10 +1,11 @@
-// Admin: payouts on hold because the customer reported a problem within the 1-hour window.
+// Admin: payouts on hold because the customer reported a problem within the 15-minute window.
 // GET -> disputed payouts. POST {action:"release"|"refund", referralId} -> pay the pro, or refund the customer.
 import { requireUser } from "../../_shared/marketplace-auth.js";
 import { json, sameOrigin, readJson } from "../../_shared/http.js";
 import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { decryptPrivate } from "../../_shared/crypto.js";
 import { releasePayout, refundDisputed } from "../../_shared/payouts.js";
+import { reviewDispute } from "../../_shared/payout-review.js";
 
 export async function onRequest({ request, env }) {
   if (!sameOrigin(request)) return json({ error: "Request origin could not be verified." }, 403);
@@ -15,7 +16,7 @@ export async function onRequest({ request, env }) {
   if (!admin || admin.account_status !== "active") return json({ error: "Administrator account is not active." }, 403);
 
   if (request.method === "GET") {
-    const rows = (await env.DB.prepare(`SELECT p.referral_id, p.amount_cents, p.status, p.disputed_at, p.dispute_note_ciphertext, p.pro_done_at, p.last_error,
+    const rows = (await env.DB.prepare(`SELECT p.referral_id, p.amount_cents, p.status, p.disputed_at, p.dispute_note_ciphertext, p.pro_done_at, p.last_error, p.ai_review_json, p.ai_review_at,
           f.customer_total_cents, r.service_zip, r.service_type, pp.independent_business_name AS pro
         FROM provider_payouts p JOIN referrals f ON f.id = p.referral_id JOIN service_requests r ON r.id = f.request_id
         JOIN provider_profiles pp ON pp.user_id = p.provider_id
@@ -25,7 +26,8 @@ export async function onRequest({ request, env }) {
     for (const x of rows) {
       let note = ""; try { note = x.dispute_note_ciphertext ? await decryptPrivate(x.dispute_note_ciphertext, env) : ""; } catch {}
       items.push({ referralId: x.referral_id, pro: x.pro, zip: x.service_zip, service: x.service_type, payoutCents: x.amount_cents, customerPaidCents: x.customer_total_cents,
-        reportedAt: x.disputed_at, note, stuck: !x.disputed_at, error: x.disputed_at ? null : x.last_error });
+        reportedAt: x.disputed_at, note, stuck: !x.disputed_at, error: x.disputed_at ? null : x.last_error,
+        ai: (() => { try { return x.ai_review_json ? JSON.parse(x.ai_review_json) : null; } catch { return null; } })(), aiAt: x.ai_review_at });
     }
     return json({ items });
   }
@@ -34,6 +36,10 @@ export async function onRequest({ request, env }) {
   if (limited) return limited;
   let input; try { input = await readJson(request); } catch { return json({ error: "Send a valid action." }, 400); }
   const referralId = typeof input.referralId === "string" ? input.referralId.slice(0, 80) : "";
+  if (input.action === "review") {
+    const r = await reviewDispute(env, referralId).catch(() => null);
+    return r ? json({ ok: true, message: "AI suggestion updated." }) : json({ error: "The AI suggestion could not be made." }, 502);
+  }
   if (input.action === "release") {
     await env.DB.prepare("UPDATE provider_payouts SET status = 'failed', attempts = 0 WHERE referral_id = ? AND status = 'releasing'").bind(referralId).run();
     const r = await releasePayout(env, referralId, { force: true });

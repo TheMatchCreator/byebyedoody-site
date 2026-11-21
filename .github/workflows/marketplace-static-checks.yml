@@ -52,7 +52,7 @@ jobs:
           ! grep -q 'transfer_data' functions/api/marketplace/payments-checkout.js
           grep -q 'source_transaction' functions/_shared/payouts.js
           grep -q 'startConfirmWindow(env, job.id' functions/api/marketplace/jobs.js
-          grep -q 'CONFIRM_WINDOW_MINUTES = 60' functions/_shared/payouts.js
+          grep -q 'CONFIRM_WINDOW_MINUTES = 15' functions/_shared/payouts.js
           grep -q 'api_rate_limits' migrations/0006_api_rate_limits.sql
           grep -q 'matching_consent_at' migrations/0003_matching_consent.sql
           grep -q 'customer_fee_acknowledged_at' migrations/0001_marketplace_foundation.sql

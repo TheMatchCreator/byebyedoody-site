@@ -1,19 +1,19 @@
 // Pay pros after BOTH sides agree the work is done.
 // 1) The customer's payment is held on the ByeByeDoody Stripe account.
-// 2) The pro taps "Job done" -> the customer is notified and has 1 hour to "Confirm job done" or
-//    "Report a problem". No answer within 1 hour counts as confirmed.
-// 3) Confirmed (or the hour passed) -> the pro's full quoted rate is transferred to their Stripe
+// 2) The pro taps "Job done" -> the customer is notified and has 15 minutes to "Confirm job done" or
+//    "Report a problem". No answer within 15 minutes counts as confirmed.
+// 3) Confirmed (or the 15 minutes passed) -> the pro's full quoted rate is transferred to their Stripe
 //    account, tied to the customer's charge (source_transaction). A reported problem holds the payout
 //    until an admin releases it or refunds the customer.
 import { stripe } from "./stripe.js";
 import { encryptPrivate, decryptPrivate } from "./crypto.js";
 import { sendEmail } from "./email.js";
 
-export const CONFIRM_WINDOW_MINUTES = 60;
+export const CONFIRM_WINDOW_MINUTES = 15;
 const adminNotify = (env, key, referralId) => env.DB.prepare(`INSERT INTO notification_events (id, user_id, referral_id, channel, template_key, delivery_status)
     SELECT lower(hex(randomblob(16))), id, ?, 'in_app', ?, 'sent' FROM app_users WHERE role = 'admin' AND account_status = 'active'`).bind(referralId, key);
 
-// Pro tapped "Job done": start the customer's 1-hour window and tell them.
+// Pro tapped "Job done": start the customer's 15-minute window and tell them.
 export async function startConfirmWindow(env, referralId, origin) {
   const res = await env.DB.prepare(`UPDATE provider_payouts SET pro_done_at = CURRENT_TIMESTAMP,
       auto_release_at = datetime('now', '+${CONFIRM_WINDOW_MINUTES} minutes') WHERE referral_id = ? AND pro_done_at IS NULL`).bind(referralId).run();
@@ -26,9 +26,9 @@ export async function startConfirmWindow(env, referralId, origin) {
       to, subject: "Your yard cleanup is done: please confirm",
       text: `${row.pro || "Your pro"} marked your ByeByeDoody cleanup as done.
 
-Please take a look and confirm within 1 hour: ${origin || "https://www.byebyedoody.com"}/app/#jobs
-- Looks good? Tap "Confirm job done" (or do nothing: after 1 hour it counts as confirmed and your pro is paid).
-- Something wrong? Tap "Report a problem" within the hour and we'll hold the pro's payment while we sort it out.
+Please take a look and confirm within 15 minutes: ${origin || "https://www.byebyedoody.com"}/app/#jobs
+- Looks good? Tap "Confirm job done" (or do nothing: after 15 minutes it counts as confirmed and your pro is paid).
+- Something wrong? Tap "Report a problem" within 15 minutes and we'll hold the pro's payment while we sort it out.
 
 ByeByeDoody`
     }).catch(() => {});
@@ -57,7 +57,7 @@ export async function customerDispute(env, referralId, note) {
 }
 
 // Transfer the pro's rate. Without {force:true} (admin), it only pays once the customer confirmed or
-// the 1-hour window passed with no problem reported.
+// the 15-minute window passed with no problem reported.
 export async function releasePayout(env, referralId, { force = false } = {}) {
   const row = await env.DB.prepare(`SELECT p.*, f.status AS job_status, f.payment_status, f.stripe_payment_intent_id,
         (p.auto_release_at IS NOT NULL AND p.auto_release_at <= datetime('now')) AS window_over
@@ -82,7 +82,7 @@ export async function releasePayout(env, referralId, { force = false } = {}) {
     }, `bbd-payout-${referralId}`);
     await env.DB.batch([
       env.DB.prepare(`UPDATE provider_payouts SET status = 'paid', stripe_transfer_id = ?, released_at = CURRENT_TIMESTAMP, last_error = NULL,
-          resolution = CASE WHEN disputed_at IS NOT NULL THEN 'released_by_admin' WHEN customer_confirmed_at IS NOT NULL THEN 'customer_confirmed' ELSE 'auto_after_1_hour' END,
+          resolution = CASE WHEN disputed_at IS NOT NULL THEN 'released_by_admin' WHEN customer_confirmed_at IS NOT NULL THEN 'customer_confirmed' ELSE 'auto_after_15_minutes' END,
           resolved_at = CURRENT_TIMESTAMP WHERE referral_id = ?`).bind(transfer.id, referralId),
       env.DB.prepare("INSERT INTO payment_ledger (id, referral_id, entry_type, amount_cents, processor_object_id, status) VALUES (?, ?, 'provider_transfer', ?, ?, 'succeeded')")
         .bind(crypto.randomUUID(), referralId, row.amount_cents, transfer.id),
@@ -115,7 +115,7 @@ export async function refundDisputed(env, referralId, actorId) {
   return { ok: true };
 }
 
-// Every 15 minutes (and when someone opens My jobs): pay out jobs whose 1-hour window has passed,
+// Every 5 minutes (and when someone opens My jobs): pay out jobs whose 15-minute window has passed,
 // customer-confirmed jobs whose transfer hasn't gone through, and retry failed transfers.
 export async function retryPayouts(env, limit = 10) {
   let rows = [];

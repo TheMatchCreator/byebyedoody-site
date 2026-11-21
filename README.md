@@ -112,10 +112,12 @@ Leads from the owner's Sweep&Go account (Open API, https://openapi.sweepandgo.co
 New checkouts charge the customer on the ByeByeDoody Stripe account (no `transfer_data`). The pro's full quoted
 rate is held (`provider_payouts`, migration 0018) and sent with a Stripe Transfer (`source_transaction` = the
 customer's charge, idempotency key `bbd-payout-<referral>`) once BOTH sides agree the job is done: the pro taps
-"Job done", then the customer has 1 hour (migration 0019) to "Confirm job done" (pays immediately) or "Report a
+"Job done", then the customer has 15 minutes (migration 0019) to "Confirm job done" (pays immediately) or "Report a
 problem" (holds the payout for the admin "Payouts on hold" panel: pay the pro or refund the customer). No answer
-in 1 hour counts as confirmed. The 15-minute scheduled job (and opening My jobs) releases due payouts and retries
-failures, so an unanswered job pays out 60-75 minutes after "Job done". Jobs paid before this change used destination charges and were already paid out.
+in 15 minutes counts as confirmed. The 5-minute scheduled job (and opening My jobs) releases due payouts and retries
+failures, so an unanswered job pays out about 15-20 minutes after "Job done". Reported problems get an AI suggestion
+(`_shared/payout-review.js`: job rules R1-R6, job timeline, pro/customer history; rule-based fallback) shown to the
+owner, who decides. Migration 0020. Jobs paid before this change used destination charges and were already paid out.
 
 ## Required before marketplace launch
 

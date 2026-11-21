@@ -6,6 +6,7 @@ import { json, sameOrigin, activeAccount, readJson } from "../../_shared/http.js
 import { enforceRateLimit } from "../../_shared/marketplace-rate-limit.js";
 import { decryptPrivate } from "../../_shared/crypto.js";
 import { rebookDelayDays } from "../../_shared/perks.js";
+import { reviewDispute } from "../../_shared/payout-review.js";
 import { startConfirmWindow, customerConfirm, customerDispute, retryPayouts, CONFIRM_WINDOW_MINUTES } from "../../_shared/payouts.js";
 
 const CONSENT_VERSION = "job_location_v1";
@@ -34,7 +35,7 @@ async function handle({ request, env }) {
   await env.DB.prepare("DELETE FROM job_location_points WHERE retention_until < ?").bind(new Date().toISOString()).run().catch(() => {});
 
   if (request.method === "GET") {
-    await retryPayouts(env, 3).catch(() => {}); // release any payouts whose 1-hour window just ended
+    await retryPayouts(env, 3).catch(() => {}); // release any payouts whose 15-minute window just ended
     const col = user.role === "provider" ? "f.provider_id" : "f.customer_id";
     const rows = (await env.DB.prepare(
       `SELECT f.id, f.request_id, f.provider_id, f.status, f.payment_status, f.provider_rate_cents, f.customer_total_cents, f.on_the_way_at, f.arrived_at, f.completed_at, f.paid_at,
@@ -73,7 +74,7 @@ async function handle({ request, env }) {
 
   if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
   if (user.role === "customer") {
-    // Customer side of "both confirm the job is done": confirm, or report a problem within the hour.
+    // Customer side of "both confirm the job is done": confirm, or report a problem within 15 minutes.
     let input; try { input = await readJson(request); } catch { return json({ error: "Submit a valid job update." }, 400); }
     const referralId = typeof input.referralId === "string" ? input.referralId.slice(0, 80) : "";
     const job = await env.DB.prepare("SELECT id FROM referrals WHERE id = ? AND customer_id = ? AND payment_status = 'paid' AND status = 'completed'").bind(referralId, user.id).first();
@@ -88,8 +89,9 @@ async function handle({ request, env }) {
       const note = typeof input.note === "string" ? input.note.trim().slice(0, 1000) : "";
       if (note.length < 5) return json({ error: "Tell us briefly what's wrong." }, 400);
       const r = await customerDispute(env, job.id, note);
-      if (!r.ok) return json({ error: "The 1-hour window to report a problem has passed, or this job was already confirmed. Use Privacy & support > Report a service issue." }, 409);
+      if (!r.ok) return json({ error: "The 15-minute window to report a problem has passed, or this job was already confirmed. Use Privacy & support > Report a service issue." }, 409);
       await env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, ?, 'customer_reported_job_problem', 'referral', ?)").bind(crypto.randomUUID(), user.id, job.id).run();
+      await reviewDispute(env, job.id).catch((e) => console.error("AI dispute review failed:", e?.message || "error")); // advice for the owner
       return json({ ok: true, message: "Got it. We've put the pro's payment on hold and ByeByeDoody will follow up with you." });
     }
     return json({ error: "Unknown job action." }, 400);
@@ -146,7 +148,7 @@ async function handle({ request, env }) {
          SELECT ?, r.customer_id, r.id, datetime('now', '+' || ? || ' days') FROM service_requests r WHERE r.id = ?`)
         .bind(crypto.randomUUID(), String(rebookDelayDays((await env.DB.prepare("SELECT service_type FROM service_requests WHERE id = ?").bind(job.request_id).first())?.service_type)), job.request_id)
     ]);
-    // Work is done on the pro's side: the customer now has 1 hour to confirm or report a problem;
+    // Work is done on the pro's side: the customer now has 15 minutes to confirm or report a problem;
     // no answer counts as confirmed and the pro is paid (see _shared/payouts.js).
     const w = await startConfirmWindow(env, job.id, new URL(request.url).origin).catch(() => ({ ok: false }));
     return json({ ok: true, sharingLocation: false, awaitingCustomer: Boolean(w.ok), confirmWindowMinutes: CONFIRM_WINDOW_MINUTES });

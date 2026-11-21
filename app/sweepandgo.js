@@ -124,19 +124,33 @@
   }
 
   // ---------- admin: payouts on hold (customer reported a problem) ----------
+  const REC = { pay_pro: "Pay the pro", refund_customer: "Refund the customer", contact_both: "Talk to both first" };
+  function aiBlock(x) {
+    const a = x.ai; if (!a) return "<div><i>No AI suggestion yet.</i></div>";
+    const f = a.facts || {};
+    const rules = (a.rulesPossiblyBroken || []).map((r) => `<li><b>${esc(r.rule)}</b> ${esc(((a.rules || []).find((y) => y.id === r.rule) || {}).text || "")}<br><i>${esc(r.why)}</i></li>`).join("");
+    return `<div style="border-left:3px solid #2f6b4f;padding:6px 10px;margin:6px 0;background:#f4f8f5">
+      <div>🤖 <b>${a.source === "ai" ? "AI" : "Automatic"} suggestion: ${esc(REC[a.recommendation] || a.recommendation)}</b> (confidence: ${esc(a.confidence)})</div>
+      ${a.summary ? `<div>${esc(a.summary)}</div>` : ""}
+      ${rules ? `<div>Rules possibly broken:<ul style="margin:4px 0 4px 18px">${rules}</ul></div>` : "<div>No job rules clearly broken.</div>"}
+      <div style="color:#5d6b63">Facts: ${f.tappedArrived ? "tapped Arrived" : "did not tap Arrived"}${f.sharedLocation ? ", shared location" : ""}${f.minutesOnSite != null ? `, ${esc(f.minutesOnSite)} min on site` : ""}. Pro: ${esc(f.proHistory?.completedJobs ?? "?")} jobs done, ${esc(f.proHistory?.otherDisputes ?? 0)} other problems reported. Customer: ${esc(f.customerHistory?.paidJobs ?? "?")} paid jobs, ${esc(f.customerHistory?.otherDisputes ?? 0)} other reports.</div>
+      ${a.suggestedMessage ? `<div>Suggested message: <i>${esc(a.suggestedMessage)}</i></div>` : ""}
+      <div style="color:#5d6b63">This is advice only. You decide.</div></div>`;
+  }
   async function renderPayoutsAdmin() {
     const box = document.querySelector("[data-payouts-admin]");
     if (!box) return;
     let d; try { d = await call("/api/marketplace/admin-payouts"); } catch (e) { box.hidden = false; box.innerHTML = `<h2>💵 Payouts on hold</h2><p>${esc(e.message)}</p>`; return; }
     box.hidden = false;
     const items = d.items || [];
-    box.innerHTML = `<h2>💵 Payouts on hold</h2><p>Pros are paid when they tap "Job done" and the customer confirms, or 1 hour passes with no problem reported. Jobs where the customer reported a problem wait here for you.</p><p data-po-status role="status"></p>` +
+    box.innerHTML = `<h2>💵 Payouts on hold</h2><p>Pros are paid when they tap "Job done" and the customer confirms, or 15 minutes pass with no problem reported. Jobs where the customer reported a problem wait here for you.</p><p data-po-status role="status"></p>` +
       (items.length ? items.map((x) => `<div class="portal-result-row" data-po="${esc(x.referralId)}"><div><b>${esc(x.pro)}</b> · ZIP ${esc(x.zip)} · payout ${money(x.payoutCents)} (customer paid ${money(x.customerPaidCents)})</div>
         <div>${x.stuck ? `Transfer keeps failing: ${esc(x.error || "")}` : `Problem reported ${esc(when(x.reportedAt))}: <i>${esc(x.note || "(no details)")}</i>`}</div>
-        <div class="portal-actions"><button type="button" data-po-act="release">Pay the pro</button>${x.stuck ? "" : `<button type="button" data-po-act="refund">Refund the customer</button>`}</div></div>`).join("") : "<p>Nothing on hold.</p>");
+        ${x.stuck ? "" : aiBlock(x)}
+        <div class="portal-actions"><button type="button" data-po-act="release">Pay the pro</button>${x.stuck ? "" : `<button type="button" data-po-act="refund">Refund the customer</button><button type="button" data-po-act="review">${x.ai ? "Ask AI again" : "Get AI suggestion"}</button>`}</div></div>`).join("") : "<p>Nothing on hold.</p>");
     box.querySelectorAll("[data-po-act]").forEach((b) => b.addEventListener("click", async () => {
       const row = b.closest("[data-po]"), act = b.dataset.poAct, st = box.querySelector("[data-po-status]");
-      if (!window.confirm(act === "release" ? "Send this payout to the pro?" : "Refund the customer in full? The pro won't be paid for this job.")) return;
+      if (act !== "review" && !window.confirm(act === "release" ? "Send this payout to the pro?" : "Refund the customer in full? The pro won't be paid for this job.")) return;
       b.disabled = true;
       try { const r = await call("/api/marketplace/admin-payouts", { method: "POST", body: JSON.stringify({ action: act, referralId: row.dataset.po }) }); await renderPayoutsAdmin(); box.querySelector("[data-po-status]").textContent = r.message; }
       catch (e) { st.textContent = e.message; b.disabled = false; }
