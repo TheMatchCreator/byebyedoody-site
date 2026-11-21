@@ -120,7 +120,14 @@ async function pullPaged(env, path, maxPages) {
   let pages = 1;
   for (let page = 1; page <= Math.min(pages, maxPages); page++) {
     const r = await sgFetch(env, `${path}${path.includes("?") ? "&" : "?"}page=${page}`);
-    if (r.status === 401 || r.status === 403) throw new Error("sweepandgo_token_rejected");
+    if (r.status === 401 || r.status === 403) {
+      // Diagnostics without exposing the token: HTTP status, Sweep&Go's message, token length, masked-copy check.
+      const t = String(env.SWEEPANDGO_API_TOKEN || "").trim();
+      const msg = r.data && (r.data.message || r.data.error || r.data.errors) ? String(r.data.message || r.data.error || JSON.stringify(r.data.errors)).slice(0, 120) : "";
+      const e = new Error("sweepandgo_token_rejected");
+      e.detail = `HTTP ${r.status}${msg ? ` "${msg}"` : ""}; token length ${t.length}${/\*/.test(t) ? ", contains * (looks like the masked copy from the token list)" : ""}${/\s/.test(t) ? ", contains spaces" : ""}`;
+      throw e;
+    }
     if (!r.ok) throw new Error("sweepandgo_http_" + r.status);
     out.push(...listFrom(r.data));
     pages = totalPages(r.data);
@@ -226,7 +233,7 @@ export async function syncSweepAndGo(env, origin, { trigger = "manual", force = 
     }
   } catch (e) {
     result.ok = false;
-    result.error = e?.message === "sweepandgo_token_rejected" ? "Sweep&Go rejected the API token. Generate a new one and update the SWEEPANDGO_API_TOKEN secret." : (e?.message || "sync_failed");
+    result.error = e?.message === "sweepandgo_token_rejected" ? `Sweep&Go rejected the API token (${e.detail || "unknown reason"}). Generate a new one and update the SWEEPANDGO_API_TOKEN secret.` : (e?.message || "sync_failed");
   }
   await setState(env, "sg_last_sync_at", new Date().toISOString());
   await setState(env, "sg_last_sync_result", JSON.stringify({ ok: result.ok, trigger, fetched: result.fetched, inserted: result.inserted, sent: result.sent, error: result.error || null, errors: result.errors.slice(0, 5) }));
