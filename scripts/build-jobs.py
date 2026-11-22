@@ -16,33 +16,18 @@ VALID_THROUGH = "2027-02-15T23:59:00"
 APPLY = "/app/?join=provider"
 
 # slug, city, state abbr, state name, downtown ZIP, nearby communities
+# Sacramento area only (owner decision 2026-11-22). Older out-of-area city pages 301 to /jobs/ (see _redirects).
 CITIES = [
-    ("new-york", "New York", "NY", "New York", "10001", ["Brooklyn", "Queens", "the Bronx", "Staten Island", "Long Island", "Westchester"]),
-    ("los-angeles", "Los Angeles", "CA", "California", "90012", ["Long Beach", "Glendale", "Pasadena", "Burbank", "Torrance", "Santa Clarita"]),
-    ("chicago", "Chicago", "IL", "Illinois", "60601", ["Naperville", "Aurora", "Joliet", "Evanston", "Schaumburg", "Elgin"]),
-    ("dallas", "Dallas", "TX", "Texas", "75201", ["Fort Worth", "Arlington", "Plano", "Irving", "Frisco", "McKinney"]),
-    ("houston", "Houston", "TX", "Texas", "77002", ["Katy", "Sugar Land", "The Woodlands", "Pearland", "League City", "Cypress"]),
-    ("washington-dc", "Washington", "DC", "District of Columbia", "20001", ["Arlington", "Alexandria", "Silver Spring", "Bethesda", "Fairfax", "Rockville"]),
-    ("philadelphia", "Philadelphia", "PA", "Pennsylvania", "19103", ["Cherry Hill", "Camden", "King of Prussia", "Norristown", "Media", "Wilmington"]),
-    ("atlanta", "Atlanta", "GA", "Georgia", "30303", ["Marietta", "Alpharetta", "Sandy Springs", "Roswell", "Decatur", "Smyrna"]),
-    ("miami", "Miami", "FL", "Florida", "33130", ["Fort Lauderdale", "Hialeah", "Hollywood", "Pembroke Pines", "Coral Springs", "West Palm Beach"]),
-    ("phoenix", "Phoenix", "AZ", "Arizona", "85004", ["Mesa", "Chandler", "Scottsdale", "Gilbert", "Glendale", "Tempe"]),
-    ("boston", "Boston", "MA", "Massachusetts", "02108", ["Cambridge", "Quincy", "Newton", "Somerville", "Lowell", "Brockton"]),
-    ("riverside", "Riverside", "CA", "California", "92501", ["San Bernardino", "Fontana", "Moreno Valley", "Corona", "Ontario", "Temecula"]),
-    ("san-francisco", "San Francisco", "CA", "California", "94103", ["Oakland", "Berkeley", "Fremont", "Hayward", "Daly City", "San Mateo"]),
-    ("detroit", "Detroit", "MI", "Michigan", "48226", ["Warren", "Sterling Heights", "Dearborn", "Livonia", "Troy", "Southfield"]),
-    ("seattle", "Seattle", "WA", "Washington", "98101", ["Tacoma", "Bellevue", "Everett", "Kent", "Renton", "Redmond"]),
-    ("minneapolis", "Minneapolis", "MN", "Minnesota", "55401", ["St. Paul", "Bloomington", "Plymouth", "Brooklyn Park", "Eden Prairie", "Maple Grove"]),
-    ("san-diego", "San Diego", "CA", "California", "92101", ["Chula Vista", "Oceanside", "Escondido", "Carlsbad", "El Cajon", "Santee"]),
-    ("tampa", "Tampa", "FL", "Florida", "33602", ["St. Petersburg", "Clearwater", "Brandon", "Wesley Chapel", "Largo", "Riverview"]),
-    ("denver", "Denver", "CO", "Colorado", "80202", ["Aurora", "Lakewood", "Thornton", "Arvada", "Westminster", "Centennial"]),
-    ("baltimore", "Baltimore", "MD", "Maryland", "21201", ["Towson", "Columbia", "Glen Burnie", "Ellicott City", "Dundalk", "Catonsville"]),
-    ("st-louis", "St. Louis", "MO", "Missouri", "63101", ["St. Charles", "O'Fallon", "Florissant", "Chesterfield", "Kirkwood", "Belleville"]),
-    ("orlando", "Orlando", "FL", "Florida", "32801", ["Kissimmee", "Sanford", "Winter Park", "Apopka", "Clermont", "Oviedo"]),
-    ("charlotte", "Charlotte", "NC", "North Carolina", "28202", ["Concord", "Gastonia", "Huntersville", "Matthews", "Mooresville", "Rock Hill"]),
-    ("san-antonio", "San Antonio", "TX", "Texas", "78205", ["New Braunfels", "Schertz", "Boerne", "Converse", "Live Oak", "Helotes"]),
-    ("portland", "Portland", "OR", "Oregon", "97204", ["Vancouver", "Beaverton", "Hillsboro", "Gresham", "Lake Oswego", "Tigard"]),
     ("sacramento", "Sacramento", "CA", "California", "95814", ["Elk Grove", "Roseville", "Folsom", "Citrus Heights", "Rancho Cordova", "Natomas"]),
+    ("elk-grove", "Elk Grove", "CA", "California", "95624", ["Sacramento", "Laguna", "Florin", "Galt", "Wilton", "Rancho Murieta"]),
+    ("roseville", "Roseville", "CA", "California", "95678", ["Rocklin", "Granite Bay", "Lincoln", "Citrus Heights", "Antelope", "Loomis"]),
+    ("folsom", "Folsom", "CA", "California", "95630", ["El Dorado Hills", "Orangevale", "Rancho Cordova", "Granite Bay", "Fair Oaks", "Cameron Park"]),
+    ("citrus-heights", "Citrus Heights", "CA", "California", "95610", ["Orangevale", "Fair Oaks", "Carmichael", "Antelope", "Roseville", "North Highlands"]),
+    ("rancho-cordova", "Rancho Cordova", "CA", "California", "95670", ["Gold River", "Folsom", "Mather", "Rosemont", "Carmichael", "Sacramento"]),
+    ("west-sacramento", "West Sacramento", "CA", "California", "95691", ["Sacramento", "Davis", "Woodland", "Natomas", "Bryte", "Broderick"]),
+    ("davis", "Davis", "CA", "California", "95616", ["Woodland", "Dixon", "West Sacramento", "Winters", "El Macero", "Sacramento"]),
+    ("rocklin", "Rocklin", "CA", "California", "95677", ["Roseville", "Loomis", "Lincoln", "Granite Bay", "Penryn", "Auburn"]),
+    ("carmichael", "Carmichael", "CA", "California", "95608", ["Fair Oaks", "Arden-Arcade", "Citrus Heights", "Rancho Cordova", "Orangevale", "Sacramento"]),
 ]
 
 HEAD_COMMON = (
@@ -202,8 +187,8 @@ def index_page():
         f'<li><strong>{esc(state)}:</strong> ' + ", ".join(f'<a class="text-link" href="/jobs/{s}">{esc(l)}</a>' for s, l in sorted(v, key=lambda x: x[1])) + "</li>"
         for state, v in sorted(groups.items())
     )
-    title = "Dog Poop Scooper Jobs Near You – Independent Cleanup Pros | ByeByeDoody"
-    desc = ("Independent dog-waste cleanup work in 25+ US metros. Set your own prices and hours, "
+    title = "Dog Poop Scooper Jobs in Sacramento & Nearby Cities | ByeByeDoody"
+    desc = ("Independent dog-waste cleanup work in Sacramento and surrounding cities. Set your own prices and hours, "
             "get instant job alerts and get paid through Stripe. Free to apply.")
     return f"""<!doctype html>
 <html lang="en">
@@ -217,11 +202,11 @@ def index_page():
 <body>
 {HEADER}
 <main>
-<section class="page-hero"><p class="eyebrow">INDEPENDENT CLEANUP PROVIDERS</p><h1>Dog poop scooper jobs near you</h1><p>ByeByeDoody is expanding nationwide. Independent pros in these metros can apply free, set their own prices and get instant alerts for yard-cleanup requests in their ZIP codes.</p><div class="button-row" style="justify-content:center"><a class="button button-dark" href="{APPLY}">Apply now (free)</a><a class="button button-outline-dark" style="border:1px solid #8da99b" href="/work-with-us.html">How it works</a></div></section>
+<section class="page-hero"><p class="eyebrow">INDEPENDENT CLEANUP PROVIDERS</p><h1>Dog poop scooper jobs in the Sacramento area</h1><p>ByeByeDoody serves Sacramento and surrounding cities. Independent pros here can apply free, set their own prices and get instant alerts for yard-cleanup requests in their ZIP codes.</p><div class="button-row" style="justify-content:center"><a class="button button-dark" href="{APPLY}">Apply now (free)</a><a class="button button-outline-dark" style="border:1px solid #8da99b" href="/work-with-us.html">How it works</a></div></section>
 <section class="section"><div class="narrow">
-<h2>Cities we're recruiting in</h2>
+<h2>Sacramento-area cities we're hiring in</h2>
 <ul class="check-list">{items}</ul>
-<p>Don't see your city? You can still apply and add your ZIP codes. Customers anywhere in the US can post requests, and you'll get alerts for the ones in your area.</p>
+<p>Near Sacramento but don't see your town? Apply and add your ZIP codes. We only serve the Sacramento area right now, so we're not hiring in other regions.</p>
 <p class="fineprint">Independent contractor roles, not employment. Joining is free. Jobs and income aren't guaranteed and depend on customer demand in your ZIP codes.</p>
 <p><a class="button button-dark" href="{APPLY}">Apply now</a></p>
 </div></section>
@@ -266,6 +251,10 @@ def feed_xml():
 def update_sitemap():
     path = ROOT / "sitemap.xml"
     xml = path.read_text()
+    import re as _re
+    keep = {c[0] for c in CITIES}
+    xml = _re.sub(r"  <url><loc>" + _re.escape(SITE) + r"/jobs/([a-z-]+)</loc>.*?</url>\n", lambda m: m.group(0) if m.group(1) in keep else "", xml)
+    path.write_text(xml)
     urls = [f"{SITE}/jobs/"] + [f"{SITE}/jobs/{c[0]}" for c in CITIES]
     add = "".join(f"  <url><loc>{u}</loc><lastmod>{DATE_POSTED}</lastmod></url>\n" for u in urls if f"<loc>{u}</loc>" not in xml)
     if add:
