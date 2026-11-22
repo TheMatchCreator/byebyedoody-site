@@ -13,6 +13,6 @@ const cf = async (path, options = {}) => {
 const db = (await cf(`/accounts/${ACCOUNT}/d1/database?name=byebyedoody-marketplace-prod`)).find((d) => d.name === "byebyedoody-marketplace-prod");
 const nonce = randomBytes(32).toString("hex");
 await cf(`/accounts/${ACCOUNT}/d1/database/${db.uuid}/query`, { method: "POST", body: JSON.stringify({ sql: "INSERT INTO cron_nonces (nonce) VALUES (?)", params: [nonce] }) });
-const r = await fetch("https://www.byebyedoody.com/api/cron/sweepandgo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nonce }) });
+const r = await fetch("https://www.byebyedoody.com/api/cron/sweepandgo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nonce, priceCheck: process.env.PRICE_CHECK === "1" }) });
 console.log("Sweep&Go sync:", r.status, await r.text());
 if (!r.ok) process.exit(1);

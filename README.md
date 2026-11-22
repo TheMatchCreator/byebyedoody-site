@@ -102,6 +102,10 @@ Leads from the owner's Sweep&Go account (Open API, https://openapi.sweepandgo.co
 - **Auto-send (changed 2026-11-21):** new leads OUTSIDE the owner's Sweep&Go service area become instant jobs (AI price, guide fallback) for
   approved pros in that ZIP, unless Sweep&Go says the email is already a client. Leads inside the owner's area and
   free quotes without a ZIP wait in the panel for the owner (or "Send to pros").
+- **Price (2026-11-22):** jobs from Sweep&Go leads use the owner's Sweep&Go Pricing Setup
+  (`price_registration_form`; out-of-area ZIPs are priced with the in-area pricing ZIP, default 95823). That price is
+  the customer's total; the pro's rate is it minus the 15% fee. Monthly plan prices are divided into per-visit prices.
+  If no Sweep&Go price is set (0), the AI/guide price is used. A manual run of "Sync Sweep&Go leads" logs a price check.
 - **Customer payment:** when a pro accepts, the customer is emailed a one-time link (`/app/?claim=…`, 7 days, stored
   as a SHA-256 hash). They sign in with the same email, the job moves into their account, and they pay with the
   normal Stripe "Pay now" (pro's rate + 15% fee). Until then the job belongs to a placeholder customer

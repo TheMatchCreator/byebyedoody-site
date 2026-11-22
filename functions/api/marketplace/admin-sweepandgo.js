@@ -77,7 +77,7 @@ export async function onRequest({ request, env }) {
     }
     const r = await sendLeadToPros(env, { ...lead, zip }, origin, auth.user.id, { dogCount: input.dogCount, serviceType: input.serviceType, yardSize: input.yardSize });
     if (!r.ok) return json({ error: r.error }, 409);
-    return json({ ok: true, message: `Sent to pros as a Book-now job at $${(feeBreakdown(r.rateCents).customerTotalCents / 100).toFixed(2)} (customer total). ${r.alerts.inApp} pro(s) in ${zip} alerted.` });
+    return json({ ok: true, message: `Sent to pros as a Book-now job at $${(feeBreakdown(r.rateCents).customerTotalCents / 100).toFixed(2)} (customer total, ${r.priceSource === "sweepandgo" ? "from your Sweep&Go prices" : "AI price because your Sweep&Go prices aren't set up"}). ${r.alerts.inApp} pro(s) in ${zip} alerted.` });
   }
   if (input.action === "skip") {
     if (lead.request_id) return json({ error: "This lead is already a Book-now job." }, 409);

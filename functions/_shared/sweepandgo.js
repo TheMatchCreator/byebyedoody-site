@@ -242,6 +242,36 @@ export async function syncSweepAndGo(env, origin, { trigger = "manual", force = 
   return result;
 }
 
+// ---------- prices from the owner's Sweep&Go Pricing Setup ----------
+// Sweep&Go only prices ZIPs inside the owner's service area, so out-of-area leads are priced with an
+// in-area "pricing ZIP" (integration_state sg_pricing_zip; default 95823, the owner's Sweep&Go area).
+// The Sweep&Go price is what the CUSTOMER pays in total; the pro's rate is that minus the 15% fee.
+const SG_FREQ = { one_time: "one_time", weekly: "once_a_week", twice_weekly: "two_times_a_week", custom: "once_a_week" };
+const VISITS_PER_MONTH = { once_a_week: 52 / 12, two_times_a_week: 104 / 12 };
+export async function sweepAndGoPrice(env, { zip, dogs, serviceType }) {
+  if (!sgReady(env)) return null;
+  const freq = SG_FREQ[serviceType] || "one_time";
+  const pricingZip = (await getState(env, "sg_pricing_zip")) || "95823";
+  for (const z of [...new Set([zip, pricingZip].filter((x) => zipOk(x)))]) {
+    try {
+      const q = new URLSearchParams({ zip_code: z, number_of_dogs: String(Math.min(Math.max(dogs || 1, 1), 10)), clean_up_frequency: freq, last_time_yard_was_thoroughly_cleaned: "one_month" });
+      const r = await sgFetch(env, "/api/v2/client_on_boarding/price_registration_form?" + q.toString());
+      if (!r.ok || !r.data) continue;
+      const p = r.data.price ?? (r.data.data && r.data.data.price);
+      await setState(env, "sg_price_sample", JSON.stringify({ zip: z, freq, dogs, price: p ?? null }).slice(0, 500)).catch(() => {});
+      let value = Number(p && typeof p === "object" ? p.value : p);
+      if (!Number.isFinite(value) || value <= 0) continue;
+      const interval = String((p && p.billing_interval) || "");
+      if (freq !== "one_time" && /month/i.test(interval) && VISITS_PER_MONTH[freq]) value = value / VISITS_PER_MONTH[freq];
+      const totalCents = Math.round(value * 100);
+      let rate = Math.floor(totalCents * 0.85);
+      while (rate > 0 && feeBreakdown(rate).customerTotalCents > totalCents) rate--;
+      if (rate >= 500 && rate <= 50000) return { rateCents: rate, customerTotalCents: feeBreakdown(rate).customerTotalCents, zip: z, interval };
+    } catch { /* try the next ZIP, then fall back to the AI price */ }
+  }
+  return null;
+}
+
 // Create an on-demand "Book now" job from a lead and alert approved pros in that ZIP.
 export async function sendLeadToPros(env, lead, origin, actorId, overrides = {}) {
   if (!zipOk(lead.zip)) return { ok: false, error: "This lead has no 5-digit ZIP code yet." };
@@ -249,9 +279,15 @@ export async function sendLeadToPros(env, lead, origin, actorId, overrides = {})
   const serviceType = ["one_time", "weekly", "twice_weekly", "custom"].includes(overrides.serviceType) ? overrides.serviceType : (lead.service_type || "one_time");
   const dogs = dogCountFrom(overrides.dogCount) || lead.dog_count || 1;
   const yardSize = ["small", "medium", "large", "unknown"].includes(overrides.yardSize) ? overrides.yardSize : "unknown";
-  let rate;
-  try { rate = (await suggestPrice(env, { serviceType, dogCount: dogs, yardSize })).suggestedCents; }
-  catch { rate = priceGuide({ serviceType, dogCount: dogs, yardSize }).midCents; }
+  // Price: the owner's Sweep&Go prices first; if those aren't set up, the AI/guide price.
+  let rate, priceSource = "sweepandgo";
+  const sgp = await sweepAndGoPrice(env, { zip: lead.zip, dogs, serviceType }).catch(() => null);
+  if (sgp) rate = sgp.rateCents;
+  else {
+    priceSource = "ai";
+    try { rate = (await suggestPrice(env, { serviceType, dogCount: dogs, yardSize })).suggestedCents; }
+    catch { rate = priceGuide({ serviceType, dogCount: dogs, yardSize }).midCents; }
+  }
   const placeholder = "sweepandgo|" + lead.id;
   const requestId = crypto.randomUUID();
   let address = lead.address_ciphertext;
@@ -282,7 +318,9 @@ export async function sendLeadToPros(env, lead, origin, actorId, overrides = {})
   let alerts = { inApp: 0, email: 0 };
   try { alerts = await alertProvidersForRequest(env, { id: requestId, zip: lead.zip, serviceType, dogCount: dogs, yardSize, instantRateCents: rate }, origin); }
   catch (e) { console.error("Sweep&Go job alerts failed:", e?.message || "error"); }
-  return { ok: true, requestId, rateCents: rate, alerts };
+  await env.DB.prepare("UPDATE sweepandgo_leads SET status_note = ? WHERE id = ?")
+    .bind(priceSource === "sweepandgo" ? "Priced from your Sweep&Go prices." : "Priced by AI (your Sweep&Go prices for this job aren't set up yet).", lead.id).run().catch(() => {});
+  return { ok: true, requestId, rateCents: rate, alerts, priceSource };
 }
 
 // Called after a pro accepts an instant job. If the job came from a Sweep&Go lead, email the customer

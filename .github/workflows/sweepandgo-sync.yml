@@ -16,4 +16,5 @@ jobs:
       - name: Pull new Sweep&Go leads
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PRICE_CHECK: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
         run: node scripts/sweepandgo-sync.mjs
