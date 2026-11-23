@@ -32,4 +32,6 @@ jobs:
           STRIPE_SECRET_KEY: ${{ secrets.BYEBYEDOODY_STRIPE_LIVE_KEY || secrets.BYEBYEDOODY_STRIPE_KEY }}
           BBD_REQUIRE_LIVE: ${{ secrets.BYEBYEDOODY_STRIPE_LIVE_KEY != '' && 'yes' || 'no' }}
           SWEEPANDGO_API_TOKEN: ${{ secrets.SWEEPANDGO_API_TOKEN }}
+          CHECKR_API_KEY: ${{ secrets.CHECKR_API_KEY }}
+          CHECKR_ENV: ${{ vars.CHECKR_ENV }}
         run: node scripts/setup-dev-marketplace.mjs

@@ -135,6 +135,14 @@ if (process.env.AUTH0_MGMT_CLIENT_ID) envVars.AUTH0_MGMT_CLIENT_ID = { type: "pl
   if (sg) { console.log(`::add-mask::${sg}`); envVars.SWEEPANDGO_API_TOKEN = { type: "secret_text", value: sg }; console.log("Sweep&Go API token: set."); }
   else console.log("Sweep&Go API token: " + (existingVars.SWEEPANDGO_API_TOKEN ? "already set; leaving it unchanged." : "not provided yet."));
 }
+// Checkr API key for pro background checks (the owner's own key, from the CHECKR_API_KEY repository secret).
+{
+  const ck = String(process.env.CHECKR_API_KEY || "").trim();
+  if (ck) { console.log(`::add-mask::${ck}`); envVars.CHECKR_API_KEY = { type: "secret_text", value: ck }; console.log("Checkr API key: set."); }
+  else console.log("Checkr API key: " + (existingVars.CHECKR_API_KEY ? "already set; leaving it unchanged." : "not provided yet."));
+  const ce = String(process.env.CHECKR_ENV || "").trim();
+  if (ce === "staging" || ce === "live") envVars.CHECKR_ENV = { type: "plain_text", value: ce };
+}
 if (!existingVars.DATA_ENCRYPTION_KEY) {
   const key = randomBytes(32).toString("base64");
   console.log(`::add-mask::${key}`);

@@ -1,4 +1,5 @@
 import { requireUser } from "../../_shared/marketplace-auth.js";
+import { checksRequired } from "../../_shared/checkr.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" }
@@ -21,7 +22,7 @@ export async function onRequest({ request, env }) {
   if (request.method === "GET") {
     try {
       const result = await env.DB.prepare(
-        "SELECT p.user_id, p.independent_business_name, p.business_registration_attested, p.own_tools_attested, p.independent_clients_attested, p.provider_sets_rates_attested, p.provider_sets_hours_attested, p.accepts_or_rejects_freely_attested, p.onboarding_status, p.created_at, u.email_verified_at, u.account_status FROM provider_profiles p JOIN app_users u ON u.id = p.user_id ORDER BY CASE p.onboarding_status WHEN 'submitted' THEN 0 WHEN 'under_review' THEN 1 ELSE 2 END, p.created_at ASC LIMIT 100"
+        "SELECT (SELECT b.status FROM background_checks b WHERE b.provider_id = p.user_id ORDER BY b.created_at DESC LIMIT 1) AS background_check, p.user_id, p.independent_business_name, p.business_registration_attested, p.own_tools_attested, p.independent_clients_attested, p.provider_sets_rates_attested, p.provider_sets_hours_attested, p.accepts_or_rejects_freely_attested, p.onboarding_status, p.created_at, u.email_verified_at, u.account_status FROM provider_profiles p JOIN app_users u ON u.id = p.user_id ORDER BY CASE p.onboarding_status WHEN 'submitted' THEN 0 WHEN 'under_review' THEN 1 ELSE 2 END, p.created_at ASC LIMIT 100"
       ).all();
       return json({ providers: result.results || [] });
     } catch (error) {
@@ -52,6 +53,14 @@ export async function onRequest({ request, env }) {
     )) {
       return json({ error: "Approval blocked: application, verified email, or required independence attestations are incomplete." }, 409);
     }
+    // Background check gate (once Checkr is connected): a clear result approves automatically; the owner can
+    // still approve without one by sending skipBackgroundCheck (recorded in the audit log).
+    if (decision === "approve" && input.skipBackgroundCheck !== true && await checksRequired(env)) {
+      const bg = await env.DB.prepare("SELECT status FROM background_checks WHERE provider_id = ? ORDER BY created_at DESC LIMIT 1").bind(providerId).first();
+      if (!bg || !["clear", "approved"].includes(bg.status)) {
+        return json({ error: "This pro hasn't passed a background check yet" + (bg ? ` (status: ${bg.status.replace("_", " ")}).` : " (they haven't started one)."), code: "background_check_needed" }, 409);
+      }
+    }
     const nextStatus = decision === "approve" ? "approved" : decision === "reject" ? "rejected" : decision === "suspend" ? "suspended" : "incomplete";
     const accountStatus = decision === "approve" ? "active" : decision === "suspend" ? "suspended" : "pending";
     const writes = await env.DB.batch([
@@ -64,7 +73,7 @@ export async function onRequest({ request, env }) {
       env.DB.prepare("UPDATE app_users SET account_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND changes() = 1")
         .bind(accountStatus, providerId),
       env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) SELECT ?, ?, ?, 'provider_profile', ? WHERE changes() = 1")
-        .bind(crypto.randomUUID(), adminId, "provider_" + decision, providerId)
+        .bind(crypto.randomUUID(), adminId, "provider_" + decision + (decision === "approve" && input.skipBackgroundCheck === true ? "_without_background_check" : ""), providerId)
     ]);
     if (!writes[0]?.meta?.changes) return json({ error: "This application changed during review. Refresh the provider list." }, 409);
     return json({ ok: true, providerId, status: nextStatus, accountStatus });

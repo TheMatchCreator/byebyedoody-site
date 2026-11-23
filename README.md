@@ -86,6 +86,29 @@ The marketplace is not yet a live booking or dispatch system.
 - `migrations/0016_platform_fee_15pct.sql` — rebuilds `referrals` so its checks accept the 15% fee (any rate from 0–50%, still enforcing total = rate + fee = ceil(rate / (1 − fee rate))); existing 20% rows and every linked row are kept. Unpaid jobs whose checkout was opened at 20% are re-priced at 15% the next time the customer pays.
 - Setup: add the repository secret `STRIPE_SECRET_KEY` (a **test** secret key) and run the "Set up ByeByeDoody development marketplace" workflow; it stores the key and a newly created webhook secret in the Pages preview environment.
 
+## Pro background checks via Checkr (owner request 2026-11-23)
+
+Pros pay for their own Checkr background check before they can be approved.
+
+- **Connect:** save the owner's Checkr API key as the GitHub repository secret `CHECKR_API_KEY` (never in chat or the repo)
+  and run the production setup workflow (`ops/run-prod-setup`); set repository variable `CHECKR_ENV=staging` only for a
+  Checkr staging key. In Checkr (Account Settings > Developer Settings) add the webhook URL
+  `https://www.byebyedoody.com/api/integrations/checkr`. Then in /app/ (admin) > "Background checks", choose the package and
+  the fee pros pay (default $65; $0 makes checks free for pros).
+- **Flow:** pro ticks consent and pays on Stripe Checkout (`/api/marketplace/background-check`, metadata
+  `kind=background_check`) -> Stripe webhook marks it paid and creates a Checkr candidate + invitation (work location
+  Sacramento, CA) -> Checkr emails the pro its hosted form (FCRA/California disclosures, consent, SSN are entered on Checkr,
+  never here) -> signed Checkr webhooks (`X-Checkr-Signature`, HMAC-SHA256 of the body with the API key; each event once,
+  `checkr_events`) update `background_checks` (migration 0021).
+- **Decisions:** `clear` auto-approves a waiting application. `consider`/`suspended` wait for the owner: Approve, or
+  Don't approve -> owner starts Pre-Adverse Action in the Checkr dashboard (Checkr sends the notices and waiting period);
+  `report.post_adverse_action` closes the application. Owner decisions are never overwritten by later report events.
+- **Gate:** once Checkr is connected and a package is chosen, the owner's Approve button needs a clear/approved check;
+  "Approve anyway" sends `skipBackgroundCheck` and is audited as `provider_approve_without_background_check`.
+  `BACKGROUND_CHECKS_REQUIRED=0` turns the gate off. Already-approved pros are not affected.
+- **Money:** a paid fee is never charged twice; expired/failed forms are re-sent free. The owner can refund a fee only
+  before Checkr has started a report.
+
 ## Sweep&Go lead integration (owner request 2026-11-19)
 
 Leads from the owner's Sweep&Go account (Open API, https://openapi.sweepandgo.com/docs) flow into the admin dashboard

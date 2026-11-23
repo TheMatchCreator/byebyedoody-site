@@ -2,6 +2,24 @@
 // and records each paid Checkout Session once in the payment ledger.
 import { verifyStripeSignature, paymentsMode } from "../_shared/stripe.js";
 import { releasePayout } from "../_shared/payouts.js";
+import { sendInvitation } from "../_shared/checkr.js";
+
+// A pro paid their background check fee: record it, then have Checkr email them its form.
+async function backgroundCheckPaid(env, s) {
+  const checkId = String(s.metadata?.check_id || s.client_reference_id || "");
+  const row = await env.DB.prepare("SELECT id, fee_cents, status FROM background_checks WHERE id = ?").bind(checkId).first();
+  if (!row) { console.warn("Stripe webhook: background check not found"); return { received: true, unmatched: true }; }
+  if (Number(s.amount_total) !== row.fee_cents) { console.error("Stripe webhook: background check amount mismatch"); return { received: true, mismatch: true }; }
+  const pi = typeof s.payment_intent === "string" ? s.payment_intent : s.payment_intent?.id || s.id;
+  const paid = await env.DB.prepare("UPDATE background_checks SET status = 'paid', stripe_checkout_session_id = ?, stripe_payment_intent_id = ?, paid_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'awaiting_payment'")
+    .bind(s.id, pi, row.id).run();
+  if (!paid.meta?.changes) return { received: true, duplicate: true };
+  await env.DB.prepare("INSERT INTO audit_events (id, actor_id, action, object_type, object_id) VALUES (?, NULL, 'background_check_paid', 'background_check', ?)").bind(crypto.randomUUID(), row.id).run()
+    .catch((e) => console.error("Background check audit write failed:", e?.message || "error"));
+  const email = s.customer_details?.email || s.customer_email || "";
+  try { await sendInvitation(env, row.id, email); return { received: true, invited: true }; }
+  catch (e) { console.error("Checkr invitation failed:", e?.message || "error"); return { received: true, invited: false }; } // pro can tap "send again"
+}
 
 const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
@@ -23,6 +41,7 @@ export async function onRequestPost({ request, env }) {
     if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
       const s = event.data?.object || {};
       if (s.payment_status !== "paid") return reply({ received: true, pending: true });
+      if (s.metadata?.kind === "background_check") return reply(await backgroundCheckPaid(env, s));
       const referralId = s.metadata?.referral_id || s.client_reference_id;
       const f = await env.DB.prepare("SELECT id, customer_total_cents, provider_rate_cents, platform_fee_cents, payment_status FROM referrals WHERE id = ? AND stripe_checkout_session_id = ?").bind(referralId, s.id).first();
       if (!f) { console.warn("Stripe webhook: no matching referral for session"); return reply({ received: true, unmatched: true }); }
